@@ -2,8 +2,11 @@ from aiogram.filters.state import StatesGroup, State
 
 
 class UserAnketa(StatesGroup):
-    addfullname = State()
-    addphone = State()
-    addaddress = State()
-    passport_a_side = State()
-    passport_b_side = State()
+    fullname = State()
+    technology = State()
+    phone = State()
+    region = State()
+    cost = State()
+    profession = State()
+    apply_time = State()
+    maqsad = State()

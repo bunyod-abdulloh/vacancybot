@@ -97,34 +97,86 @@ class Database:
     async def drop_table_users(self):
         await self.execute("DROP TABLE users", execute=True)
 
-    # ======================= TABLE | SEARCH PARTNER =======================
-    async def create_table_srch_partner(self):
+    # ======================= REGIONS =======================
+    async def create_table_regions(self):
         sql = """
-        CREATE TABLE IF NOT EXISTS srch_partner (                
-        telegram_id BIGINT NOT NULL UNIQUE,
-        full_name VARCHAR(255) NULL,
-        username VARCHAR(255) NULL,
-        texnology VARCHAR(2000) NULL,
-        phone VARCHAR(50) NULL, 
-        region VARCHAR(500) NULL,
-        cost VARCHAR(60) NULL,
-        profession VARCHAR(500) NULL,
-        apply_time VARCHAR(60) NULL, 
-        maqsad VARCHAR(1000) NULL                                       
+        CREATE TABLE IF NOT EXISTS regions (
+        id SERIAL PRIMARY KEY,
+        region_name VARCHAR(500) NOT NULL UNIQUE
         );
         """
         await self.execute(sql, execute=True)
 
-    async def create_table_tables(self):
+    async def add_region(self, region_name):
+        sql = "INSERT INTO regions (region_name) VALUES($1) returning id"
+        return await self.execute(sql, region_name, fetchrow=True)
+
+    # ======================= PROFESSIONS =======================
+    async def create_table_professions(self):
         sql = """
-        CREATE TABLE IF NOT EXISTS medialar_tables (
-        table_number INTEGER PRIMARY KEY NOT NULL,
-        channel_id VARCHAR(50) NULL,
-        comment TEXT NULL,
-        files BOOLEAN DEFAULT FALSE
+        CREATE TABLE IF NOT EXISTS professions (
+        id SERIAL PRIMARY KEY,
+        profession_name VARCHAR(255) NOT NULL UNIQUE
         );
         """
         await self.execute(sql, execute=True)
+
+    async def add_profession(self, profession_name):
+        sql = "INSERT INTO professions (profession_name) VALUES($1) returning id"
+        return await self.execute(sql, profession_name, fetchrow=True)
+
+    # ======================= PARTNER_TECHNOLOGIES =======================
+    async def create_table_technologies(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS technologies (
+        id SERIAL PRIMARY KEY,
+        technology_name VARCHAR(500) NOT NULL UNIQUE
+        );
+        """
+        await self.execute(sql, execute=True)
+
+    async def add_technology(self, technology_name):
+        sql = "INSERT INTO technologies (technology_name) VALUES($1)"
+        return await self.execute(sql, technology_name, fetchrow=True)
+
+    async def create_table_partner_technologies(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS partner_technologies (        
+        partner_id BIGINT NOT NULL REFERENCES srch_partner(telegram_id),
+        technology_id INTEGER NOT NULL REFERENCES technologies(id),
+        PRIMARY KEY (partner_id, technology_id)
+        );
+        """
+        await self.execute(sql, execute=True)
+
+    async def add_partner_technologies(self, partner_id, technology_id):
+        sql = "INSERT INTO partner_technologies (partner_id, technology_id) VALUES($1, $2)"
+        return await self.execute(sql, partner_id, technology_id, fetchrow=True)
+
+    # ======================= TABLE | SEARCH PARTNER =======================
+    async def search_partner(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS srch_partner (
+        telegram_id BIGINT NOT NULL UNIQUE,
+        full_name VARCHAR(255) NULL,
+        username VARCHAR(255) NULL,
+        phone VARCHAR(50) NULL, 
+        region_id INT NULL REFERENCES regions(id),
+        cost VARCHAR(60) NULL,
+        profession_id INT NULL REFERENCES professions(id),
+        apply_time VARCHAR(60) NULL, 
+        maqsad VARCHAR(1000) NULL
+        );
+        """
+        await self.execute(sql, execute=True)
+
+    async def add_srch_partner(self, telegram_id, full_name, username, phone, region_id, cost, profession_id,
+                               apply_time, maqsad):
+        sql = ("INSERT INTO srch_partner (telegram_id, full_name, username, phone, region_id, cost, profession_id, "
+               "apply_time, maqsad) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+        return await self.execute(sql, telegram_id, full_name, username, phone, region_id, cost, profession_id,
+                                  apply_time, maqsad, fetchrow=True)
+
 
     async def select_all_tables(self, table_type):
         sql = f"SELECT * FROM medialar_tables WHERE table_type='{table_type}' ORDER BY table_number ASC"
