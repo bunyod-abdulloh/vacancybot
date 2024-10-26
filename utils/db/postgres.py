@@ -47,7 +47,7 @@ class Database:
         sql = """
         CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,        
-        telegram_id BIGINT NOT NULL UNIQUE,               
+        telegram_id BIGINT NOT NULL UNIQUE               
         );
         """
         await self.execute(sql, execute=True)
