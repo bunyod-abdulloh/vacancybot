@@ -121,7 +121,7 @@ async def get_maqsad_rtr(message: types.Message, state: FSMContext):
     techs = data['technologies'].split(",")
     techs_ = str()
     for tech in techs:
-        techs_ += f" #{tech.lstrip()}"
+        techs_ += f" #{tech.lstrip().lower()}"
     region = data['region'].split(" ")
     text = (f"👤 <b>Sherik:</b> {data['fullname']}\n"
             f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
@@ -136,3 +136,4 @@ async def get_maqsad_rtr(message: types.Message, state: FSMContext):
     await message.answer(
         text=text
     )
+    await state.clear()
