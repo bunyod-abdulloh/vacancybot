@@ -7,9 +7,6 @@ from aiogram.client.session.middlewares.request_logging import logger
 from bot.middlewares.mediagroup import MediaGroupMiddleware
 from loader import db
 
-I18N_DOMAIN = 'chinashopbot'
-LOCALES_DIR = 'data/jsonfiles/uz_json.json'
-
 
 def setup_handlers(dispatcher: Dispatcher) -> None:
     """HANDLERS"""

@@ -1,7 +1,7 @@
 from aiogram.filters.state import StatesGroup, State
 
 
-class UserAnketa(StatesGroup):
+class LookingPartner(StatesGroup):
     fullname = State()
     technology = State()
     phone = State()
@@ -10,3 +10,8 @@ class UserAnketa(StatesGroup):
     profession = State()
     apply_time = State()
     maqsad = State()
+    check = State()
+
+
+class JobSearch(StatesGroup):
+    pass
