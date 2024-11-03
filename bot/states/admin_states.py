@@ -11,3 +11,8 @@ class AdminState(StatesGroup):
     ask = State()
     check_no = State()
     send_to_users = State()
+
+
+class AdminCheck(StatesGroup):
+    partner_no = State()
+    partner_no_ = State()

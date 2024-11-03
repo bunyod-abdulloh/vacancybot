@@ -23,3 +23,16 @@ admin_check_second_ikb = InlineKeyboardMarkup(
         ]
     ]
 )
+
+
+def partner_check_ikb(user_id, row_id):
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(
+                text="Yo'q qayta", callback_data=f"admincheck_no:{user_id}:{row_id}"),
+            InlineKeyboardButton(
+                text="Ha", callback_data=f"partner_yes:{user_id}:{row_id}"
+            )
+        ]]
+    )
+    return markup
