@@ -41,8 +41,13 @@ async def setup_aiogram(dispatcher: Dispatcher) -> None:
 async def database_connected():
     # Ma'lumotlar bazasini yaratamiz:
     await db.create()
-    # await db.drop_table_users()
-    await db.create_table_users()
+    await db.drop_table(table="users")
+    await db.drop_table(table="regions")
+    await db.drop_table(table="professions")
+    await db.drop_table(table="technologies")
+    await db.drop_table(table="srch_partner")
+    await db.drop_table(table="partner_technologies")
+    await db.create_tables()
 
 
 async def on_startup(dispatcher: Dispatcher, bot: Bot) -> None:

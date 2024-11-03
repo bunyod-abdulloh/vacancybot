@@ -5,7 +5,7 @@ from bot.keyboards.inline.admin_ikb import admin_check_ikb
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import LookingPartner
 from data.config import BIG_ADMIN
-from loader import bot
+from loader import bot, db
 
 router = Router()
 
@@ -15,24 +15,27 @@ async def ask_for_fullname(message: types.Message, state: FSMContext):
     await state.set_state(LookingPartner.fullname)
 
 
-async def partner_datas(message: types.Message, state: FSMContext):
+async def partner_datas(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
     techs = data['technologies'].split(",")
     techs_ = str()
     for tech in techs:
         techs_ += f" #{tech.lstrip().lower()}"
     region = data['region'].split(" ")
-    text = (f"👤 <b>Sherik:</b> {data['fullname']}\n"
-            f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
-            f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-            f"📞 <b>Aloqa</b> {data['phone']}\n"
-            f"🌎 <b>Hudud:</b> {data['region']}\n"
-            f"💰 <b>Narx:</b> {data['cost']}\n"
-            f"💻 <b>Kasbi:</b> {data['profession']}\n"
-            f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
-            f"📌 <b>Maqsad:</b> {message.text}\n\n"
-            f"#sherik {techs_} #{region[0]}")
-    return text
+    if save_to_db:
+        return data
+    else:
+        text = (f"👤 <b>Sherik:</b> {data['fullname']}\n"
+                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
+                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
+                f"📞 <b>Aloqa</b> {data['phone']}\n"
+                f"🌎 <b>Hudud:</b> {data['region']}\n"
+                f"💰 <b>Narx:</b> {data['cost']}\n"
+                f"💻 <b>Kasbi:</b> {data['profession']}\n"
+                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
+                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
+                f"#sherik {techs_} #{region[0]}")
+        return text
 
 
 @router.message(F.text == "Sherik kerak")
@@ -142,6 +145,9 @@ async def get_apply_time_rtr(message: types.Message, state: FSMContext):
 
 @router.message(LookingPartner.maqsad)
 async def get_maqsad_rtr(message: types.Message, state: FSMContext):
+    await state.update_data(
+        maqsad=message.text
+    )
     datas = await partner_datas(
         message, state
     )
@@ -156,13 +162,57 @@ async def get_maqsad_rtr(message: types.Message, state: FSMContext):
 
 @router.message(LookingPartner.check)
 async def partner_check_rtr(message: types.Message, state: FSMContext):
+    telegram_id = message.from_user.id
+
     if message.text == "♻️ Qayta kiritish":
         await ask_for_fullname(
             message, state
         )
     elif message.text == "✅ Tasdiqlash":
+        save_to_db = await partner_datas(
+            message, state, save_to_db=True
+        )
+        # user_id = int()
+        existing_partner = await db.get_user(
+            telegram_id=telegram_id
+        )
+
+        if existing_partner:
+            user_id = existing_partner['id']
+        else:
+            user = await db.add_user(
+                telegram_id=telegram_id, username=f'@{message.from_user.username}',
+                full_name=save_to_db['fullname'], phone=save_to_db['phone']
+            )
+            user_id = user['id']
+
         datas = await partner_datas(
             message, state
+        )
+
+        region = await db.add_entry(
+            table="regions", field="region_name", value=save_to_db.get('region')
+        )
+        profession = await db.add_entry(
+            table="professions", field="profession_name", value=save_to_db.get('profession')
+        )
+
+        technologies = save_to_db.get('technologies', '').split(",")
+        technology_ids = []
+
+        for technology in technologies:
+            technology_ = await db.add_entry(
+                table="technologies", field="technology_name", value=technology.strip()
+            )
+            technology_ids.append(technology_['id'])
+
+        await db.add_partner_technologies(
+            partner_id=user_id, technology_ids=technology_ids,
+        )
+
+        await db.add_srch_partner(
+            user_id=user_id, region_id=region['id'], profession_id=profession['id'],
+            apply_time=save_to_db['apply_time'], cost=save_to_db['cost'], maqsad=save_to_db['maqsad']
         )
         await bot.send_message(
             chat_id=BIG_ADMIN,

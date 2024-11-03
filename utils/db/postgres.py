@@ -1,8 +1,7 @@
 from typing import Union
 
 import asyncpg
-from asyncpg import Connection
-from asyncpg.pool import Pool
+from asyncpg import Connection, Pool
 
 from data import config
 
@@ -19,183 +18,148 @@ class Database:
             database=config.DB_NAME,
         )
 
-    async def execute(
-            self,
-            command,
-            *args,
-            fetch: bool = False,
-            fetchval: bool = False,
-            fetchrow: bool = False,
-            execute: bool = False,
-    ):
-
+    async def execute(self, command, *args, fetch=False, fetchval=False, fetchrow=False, execute=False):
         async with self.pool.acquire() as connection:
             connection: Connection
             async with connection.transaction():
                 if fetch:
-                    result = await connection.fetch(command, *args)
+                    return await connection.fetch(command, *args)
                 elif fetchval:
-                    result = await connection.fetchval(command, *args)
+                    return await connection.fetchval(command, *args)
                 elif fetchrow:
-                    result = await connection.fetchrow(command, *args)
+                    return await connection.fetchrow(command, *args)
                 elif execute:
-                    result = await connection.execute(command, *args)
-            return result
+                    return await connection.execute(command, *args)
 
-    # ======================= TABLE | USERS =======================
-    async def create_table_users(self):
-        sql = """
+    # ======================= TABLE CREATION =======================
+    async def create_tables(self):
+        user_table = """
         CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,        
-        telegram_id BIGINT NOT NULL UNIQUE               
+            id SERIAL PRIMARY KEY,
+            telegram_id BIGINT NOT NULL UNIQUE,
+            full_name VARCHAR(255) NULL,
+            username VARCHAR(255) NULL,
+            phone VARCHAR(50) NULL            
         );
         """
-        await self.execute(sql, execute=True)
+        region_table = """
+        CREATE TABLE IF NOT EXISTS regions (
+            id SERIAL PRIMARY KEY,
+            region_name VARCHAR(500) NOT NULL UNIQUE
+        );
+        """
+        profession_table = """
+        CREATE TABLE IF NOT EXISTS professions (
+            id SERIAL PRIMARY KEY,
+            profession_name VARCHAR(255) NOT NULL UNIQUE
+        );
+        """
+        technology_table = """
+        CREATE TABLE IF NOT EXISTS technologies (
+            id SERIAL PRIMARY KEY,
+            technology_name VARCHAR(500) NOT NULL UNIQUE
+        );
+        """
+        partner_technology_table = """
+        CREATE TABLE IF NOT EXISTS partner_technologies (
+            partner_id BIGINT NOT NULL REFERENCES users(id),
+            technology_id INT NOT NULL REFERENCES technologies(id),            
+            PRIMARY KEY (partner_id, technology_id)
+        );
+        """
+        srch_partner_table = """
+        CREATE TABLE IF NOT EXISTS srch_partner (
+            user_id BIGINT NOT NULL REFERENCES users(id),            
+            region_id INT NULL REFERENCES regions(id),
+            profession_id INT NULL REFERENCES professions(id),
+            apply_time VARCHAR(60) NULL,
+            cost VARCHAR(60) NULL,
+            maqsad VARCHAR(1000) NULL              
+        );
+        """
 
-    async def add_user(self, username, telegram_id):
-        sql = "INSERT INTO users (username, telegram_id) VALUES($1, $2)"
-        return await self.execute(sql, username, telegram_id, fetchrow=True)
+        await self.execute(user_table, execute=True)
+        await self.execute(region_table, execute=True)
+        await self.execute(profession_table, execute=True)
+        await self.execute(technology_table, execute=True)
+        await self.execute(partner_technology_table, execute=True)
+        await self.execute(srch_partner_table, execute=True)
 
-    async def update_user_fullname(self, fullname, telegram_id):
-        sql = "UPDATE users SET full_name=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, fullname, telegram_id, fetchrow=True)
+    # ======================= USERS CRUD =======================
+    async def add_user(self, telegram_id, username=None, full_name=None, phone=None):
+        sql_insert = """
+        INSERT INTO users (telegram_id, username, full_name, phone) 
+        VALUES ($1, $2, $3, $4) 
+        ON CONFLICT (telegram_id) DO NOTHING 
+        RETURNING id
+        """
+        user = await self.execute(sql_insert, telegram_id, username, full_name, phone, fetchrow=True)
 
-    async def update_user_phone(self, phone, telegram_id):
-        sql = "UPDATE users SET phone=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, phone, telegram_id, fetchrow=True)
+        if user:
+            return user  # Yangi yozuv yaratildi
 
-    async def update_user_address(self, address, telegram_id):
-        sql = "UPDATE users SET address=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, address, telegram_id, fetchrow=True)
+        # Agar foydalanuvchi allaqachon mavjud bo'lsa, uni qaytaring
+        sql_select = "SELECT id FROM users WHERE telegram_id=$1"
+        return await self.execute(sql_select, telegram_id, fetchrow=True)
 
-    async def update_user_passport_a_side(self, passport_a_side, telegram_id):
-        sql = "UPDATE users SET passport_a_side=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, passport_a_side, telegram_id, fetchrow=True)
+    async def update_user(self, telegram_id, field, value):
+        sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
+        return await self.execute(sql, value, telegram_id, fetchrow=True)
 
-    async def update_user_passport_b_side(self, passport_b_side, telegram_id):
-        sql = "UPDATE users SET passport_b_side=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, passport_b_side, telegram_id, fetchrow=True)
-
-    async def select_all_users(self):
-        sql = "SELECT * FROM users"
-        return await self.execute(sql, fetch=True)
-
-    async def select_user(self, telegram_id):
-        sql = f"SELECT * FROM users WHERE telegram_id='{telegram_id}'"
-        return await self.execute(sql, fetchrow=True)
-
-    async def count_users(self):
-        sql = "SELECT COUNT(*) FROM users"
-        return await self.execute(sql, fetchval=True)
-
-    async def delete_users(self):
-        await self.execute("DELETE FROM users WHERE TRUE", execute=True)
+    async def get_user(self, telegram_id):
+        sql = "SELECT * FROM users WHERE telegram_id=$1"
+        return await self.execute(sql, telegram_id, fetchrow=True)
 
     async def delete_user(self, telegram_id):
-        await self.execute(f"DELETE FROM users WHERE telegram_id='{telegram_id}'", execute=True)
+        sql = "DELETE FROM users WHERE telegram_id=$1"
+        await self.execute(sql, telegram_id, execute=True)
 
-    async def drop_table_users(self):
-        await self.execute("DROP TABLE users", execute=True)
-
-    # ======================= REGIONS =======================
-    async def create_table_regions(self):
+    # ======================= SRCH_PARTNER CRUD =======================
+    async def add_srch_partner(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
         sql = """
-        CREATE TABLE IF NOT EXISTS regions (
-        id SERIAL PRIMARY KEY,
-        region_name VARCHAR(500) NOT NULL UNIQUE
-        );
+        INSERT INTO srch_partner (user_id, region_id, profession_id, apply_time, cost, maqsad)
+        VALUES ($1, $2, $3, $4, $5, $6)
         """
-        await self.execute(sql, execute=True)
+        return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
-    async def add_region(self, region_name):
-        sql = "INSERT INTO regions (region_name) VALUES($1) returning id"
-        return await self.execute(sql, region_name, fetchrow=True)
+    async def add_partner_technologies(self, partner_id, technology_ids):
+        for technology_id in technology_ids:
+            sql = f"""
+            INSERT INTO partner_technologies (partner_id, technology_id)
+            VALUES ($1, $2)
+            ON CONFLICT (partner_id, technology_id) DO NOTHING
+            RETURNING partner_id
+            """
+            await self.execute(sql, partner_id, technology_id, fetchrow=True)
 
-    # ======================= PROFESSIONS =======================
-    async def create_table_professions(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS professions (
-        id SERIAL PRIMARY KEY,
-        profession_name VARCHAR(255) NOT NULL UNIQUE
-        );
-        """
-        await self.execute(sql, execute=True)
+    async def update_srch_partner(self, user_id, field, value):
+        sql = f"UPDATE srch_partner SET {field}=$1 WHERE user_id=$2"
+        return await self.execute(sql, value, user_id, fetchrow=True)
 
-    async def add_profession(self, profession_name):
-        sql = "INSERT INTO professions (profession_name) VALUES($1) returning id"
-        return await self.execute(sql, profession_name, fetchrow=True)
+    async def get_srch_partner(self, user_id):
+        sql = "SELECT * FROM srch_partner WHERE user_id=$1"
+        return await self.execute(sql, user_id, fetchrow=True)
 
-    # ======================= PARTNER_TECHNOLOGIES =======================
-    async def create_table_technologies(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS technologies (
-        id SERIAL PRIMARY KEY,
-        technology_name VARCHAR(500) NOT NULL UNIQUE
-        );
-        """
-        await self.execute(sql, execute=True)
+    async def delete_srch_partner(self, user_id):
+        sql = "DELETE FROM srch_partner WHERE user_id=$1"
+        await self.execute(sql, user_id, execute=True)
 
-    async def add_technology(self, technology_name):
-        sql = "INSERT INTO technologies (technology_name) VALUES($1)"
-        return await self.execute(sql, technology_name, fetchrow=True)
+    # ======================= GENERIC CRUD =======================
+    async def add_entry(self, table, field, value):
+        sql_insert = f"INSERT INTO {table} ({field}) VALUES($1) ON CONFLICT ({field}) DO NOTHING RETURNING id"
+        entry = await self.execute(sql_insert, value, fetchrow=True)
 
-    async def create_table_partner_technologies(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS partner_technologies (        
-        partner_id BIGINT NOT NULL REFERENCES srch_partner(telegram_id),
-        technology_id INTEGER NOT NULL REFERENCES technologies(id),
-        PRIMARY KEY (partner_id, technology_id)
-        );
-        """
-        await self.execute(sql, execute=True)
+        if entry:
+            return entry  # Yangi yozuv yaratildi
 
-    async def add_partner_technologies(self, partner_id, technology_id):
-        sql = "INSERT INTO partner_technologies (partner_id, technology_id) VALUES($1, $2)"
-        return await self.execute(sql, partner_id, technology_id, fetchrow=True)
+        # Agar yozuv allaqachon mavjud bo'lsa, uni qaytarish
+        sql_select = f"SELECT id FROM {table} WHERE {field} = $1"
+        return await self.execute(sql_select, value, fetchrow=True)
 
-    # ======================= TABLE | SEARCH PARTNER =======================
-    async def search_partner(self):
-        sql = """
-        CREATE TABLE IF NOT EXISTS srch_partner (
-        telegram_id BIGINT NOT NULL UNIQUE,
-        full_name VARCHAR(255) NULL,
-        username VARCHAR(255) NULL,
-        phone VARCHAR(50) NULL, 
-        region_id INT NULL REFERENCES regions(id),
-        cost VARCHAR(60) NULL,
-        profession_id INT NULL REFERENCES professions(id),
-        apply_time VARCHAR(60) NULL, 
-        maqsad VARCHAR(1000) NULL
-        );
-        """
-        await self.execute(sql, execute=True)
-
-    async def add_srch_partner(self, telegram_id, full_name, username, phone, region_id, cost, profession_id,
-                               apply_time, maqsad):
-        sql = ("INSERT INTO srch_partner (telegram_id, full_name, username, phone, region_id, cost, profession_id, "
-               "apply_time, maqsad) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-        return await self.execute(sql, telegram_id, full_name, username, phone, region_id, cost, profession_id,
-                                  apply_time, maqsad, fetchrow=True)
-
-
-    async def select_all_tables(self, table_type):
-        sql = f"SELECT * FROM medialar_tables WHERE table_type='{table_type}' ORDER BY table_number ASC"
+    async def get_all_entries(self, table):
+        sql = f"SELECT * FROM {table}"
         return await self.execute(sql, fetch=True)
 
-    async def select_table_tables(self):
-        sql = "SELECT * FROM medialar_tables"
-        return await self.execute(sql, fetch=True)
-
-    async def get_channel_id(self, table_number):
-        sql = f"SELECT channel_id FROM medialar_tables WHERE table_number='{table_number}'"
-        return await self.execute(sql, fetchrow=True)
-
-    async def select_media_by_id(self, table_number):
-        sql = f"SELECT * FROM medialar_tables WHERE table_number='{table_number}'"
-        return await self.execute(sql, fetchrow=True)
-
-    async def delete_table_tables(self, table_number):
-        await self.execute(f"DELETE FROM medialar_tables WHERE table_number='{table_number}'", execute=True)
-
-    async def drop_table_tables(self):
-        await self.execute(f"DROP TABLE medialar_tables", execute=True)
+    async def drop_table(self, table):
+        sql = f"DROP TABLE {table} CASCADE"
+        await self.execute(sql, execute=True)
