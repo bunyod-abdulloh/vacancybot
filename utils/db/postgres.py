@@ -69,12 +69,13 @@ class Database:
         """
         srch_partner_table = """
         CREATE TABLE IF NOT EXISTS srch_partner (
+            id SERIAL PRIMARY KEY,
             user_id BIGINT NOT NULL REFERENCES users(id),            
             region_id INT NULL REFERENCES regions(id),
             profession_id INT NULL REFERENCES professions(id),
             apply_time VARCHAR(60) NULL,
             cost VARCHAR(60) NULL,
-            maqsad VARCHAR(1000) NULL              
+            maqsad VARCHAR(2000) NULL              
         );
         """
 
@@ -97,10 +98,9 @@ class Database:
 
         if user:
             return user  # Yangi yozuv yaratildi
-
-        # Agar foydalanuvchi allaqachon mavjud bo'lsa, uni qaytaring
-        sql_select = "SELECT id FROM users WHERE telegram_id=$1"
-        return await self.execute(sql_select, telegram_id, fetchrow=True)
+        else:
+            sql_select = "SELECT id FROM users WHERE telegram_id=$1"
+            return await self.execute(sql_select, telegram_id, fetchrow=True)
 
     async def update_user(self, telegram_id, field, value):
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
@@ -118,7 +118,7 @@ class Database:
     async def add_srch_partner(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
         sql = """
         INSERT INTO srch_partner (user_id, region_id, profession_id, apply_time, cost, maqsad)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
         """
         return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
@@ -150,11 +150,10 @@ class Database:
         entry = await self.execute(sql_insert, value, fetchrow=True)
 
         if entry:
-            return entry  # Yangi yozuv yaratildi
-
-        # Agar yozuv allaqachon mavjud bo'lsa, uni qaytarish
-        sql_select = f"SELECT id FROM {table} WHERE {field} = $1"
-        return await self.execute(sql_select, value, fetchrow=True)
+            return entry
+        else:
+            sql_select = f"SELECT id FROM {table} WHERE {field} = $1"
+            return await self.execute(sql_select, value, fetchrow=True)
 
     async def get_all_entries(self, table):
         sql = f"SELECT * FROM {table}"

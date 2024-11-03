@@ -2,6 +2,7 @@ from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
 from bot.keyboards.inline.admin_ikb import admin_check_ikb
+from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import LookingPartner
 from data.config import BIG_ADMIN
@@ -79,9 +80,9 @@ async def get_phone_rtr(message: types.Message, state: FSMContext):
     )
     await message.answer(
         text="🌎 Hududingiz qaysi?\n\n"
-             "(O'zbekistonda bo'lsangiz viloyat yoki shahar nomini, chet elda bo'lsangiz davlat va shahar nomini "
+             "(O'zbekistonda bo'lsangiz viloyat va shahar nomini, chet elda bo'lsangiz davlat va shahar nomini "
              "kiriting)\n\n"
-             "<b>Namuna: Toshkent shahri yoki Turkiya, Istanbul</b>"
+             "<b>Namuna: Farg'ona, Qo'qon yoki Turkiya, Istanbul</b>"
     )
     await state.set_state(
         LookingPartner.region
@@ -108,8 +109,8 @@ async def get_cost_rtr(message: types.Message, state: FSMContext):
         cost=message.text
     )
     await message.answer(
-        text="👨🏻‍💻 <b>Kasbi:</b>\n\nIshlaysizmi yoki o'qiysizmi?\n\n"
-             "<b>Namuna: O'qiyman, Talaba | Ishlayman, CEO</b>"
+        text="👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n"
+             "<b>Namuna: Python Developer, Senior</b>"
     )
     await state.set_state(
         LookingPartner.profession
@@ -169,26 +170,17 @@ async def partner_check_rtr(message: types.Message, state: FSMContext):
             message, state
         )
     elif message.text == "✅ Tasdiqlash":
+
         save_to_db = await partner_datas(
             message, state, save_to_db=True
         )
-        # user_id = int()
-        existing_partner = await db.get_user(
-            telegram_id=telegram_id
+
+        user = await db.add_user(
+            telegram_id=telegram_id, username=f'@{message.from_user.username}',
+            full_name=save_to_db['fullname'], phone=save_to_db['phone']
         )
 
-        if existing_partner:
-            user_id = existing_partner['id']
-        else:
-            user = await db.add_user(
-                telegram_id=telegram_id, username=f'@{message.from_user.username}',
-                full_name=save_to_db['fullname'], phone=save_to_db['phone']
-            )
-            user_id = user['id']
-
-        datas = await partner_datas(
-            message, state
-        )
+        user_id = user['id']
 
         region = await db.add_entry(
             table="regions", field="region_name", value=save_to_db.get('region')
@@ -202,7 +194,7 @@ async def partner_check_rtr(message: types.Message, state: FSMContext):
 
         for technology in technologies:
             technology_ = await db.add_entry(
-                table="technologies", field="technology_name", value=technology.strip()
+                table="technologies", field="technology_name", value=technology.strip().lower()
             )
             technology_ids.append(technology_['id'])
 
@@ -210,15 +202,26 @@ async def partner_check_rtr(message: types.Message, state: FSMContext):
             partner_id=user_id, technology_ids=technology_ids,
         )
 
-        await db.add_srch_partner(
+        srch_id = await db.add_srch_partner(
             user_id=user_id, region_id=region['id'], profession_id=profession['id'],
             apply_time=save_to_db['apply_time'], cost=save_to_db['cost'], maqsad=save_to_db['maqsad']
         )
+
+        datas = await partner_datas(
+            message, state
+        )
+
+        await message.answer(
+            text=f"Ma'lumotlaringiz adminga yuborildi!\nSo'rov raqami: {telegram_id}{srch_id['id']}\n\n"
+                 f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!",
+            reply_markup=main_dkb()
+        )
+
         await bot.send_message(
             chat_id=BIG_ADMIN,
             text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{datas}",
             reply_markup=admin_check_ikb(
-                user_id=message.from_user.id
+                user_id=message.from_user.id, row_id=srch_id['id']
             )
         )
         await state.clear()

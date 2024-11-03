@@ -7,7 +7,7 @@ def setup_routers() -> Router:
     from bot.handlers.users import start_hr
     from .search import partner
     from .errors import error_handler
-    from .admin import admin_main, admin_users, admin_downloads, admin_check
+    from .admin import check_partner
 
     router = Router()
 
@@ -16,5 +16,5 @@ def setup_routers() -> Router:
     #  Users
     router.include_routers(start_hr.router, partner.router)
     # Admins
-    router.include_routers(admin_main.router, admin_users.router, admin_downloads.router, admin_check.router)
+    router.include_routers(check_partner.router)
     return router

@@ -1,13 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def admin_check_ikb(user_id):
+def admin_check_ikb(user_id, row_id):
     markup = InlineKeyboardMarkup(
         inline_keyboard=[[
-            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admincheck_yes:{user_id}")
+            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admincheck_yes:{user_id}:{row_id}")
         ],
             [
-                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admincheck_no:{user_id}")
+                InlineKeyboardButton(text="❌ Rad etish", callback_data=f"admincheck_no:{user_id}:{row_id}")
             ]
         ]
     )
