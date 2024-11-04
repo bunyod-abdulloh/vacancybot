@@ -106,10 +106,6 @@ class Database:
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
         return await self.execute(sql, value, telegram_id, fetchrow=True)
 
-    async def get_user(self, telegram_id):
-        sql = "SELECT * FROM users WHERE telegram_id=$1"
-        return await self.execute(sql, telegram_id, fetchrow=True)
-
     async def delete_user(self, telegram_id):
         sql = "DELETE FROM users WHERE telegram_id=$1"
         await self.execute(sql, telegram_id, execute=True)
@@ -140,6 +136,10 @@ class Database:
         sql = "SELECT * FROM srch_partner WHERE user_id=$1"
         return await self.execute(sql, user_id, fetchrow=True)
 
+    async def get_partner_technologies(self, partner_id):
+        sql = "SELECT * FROM partner_technologies WHERE partner_id=$1"
+        return await self.execute(sql, partner_id, fetch=True)
+
     async def delete_srch_partner(self, user_id):
         sql = "DELETE FROM srch_partner WHERE user_id=$1"
         await self.execute(sql, user_id, execute=True)
@@ -155,9 +155,17 @@ class Database:
             sql_select = f"SELECT id FROM {table} WHERE {field} = $1"
             return await self.execute(sql_select, value, fetchrow=True)
 
+    async def get_entry(self, table, field, value):
+        sql = f"SELECT * FROM {table} WHERE {field}=$1"
+        return await self.execute(sql, value, fetchrow=True)
+
     async def get_all_entries(self, table):
         sql = f"SELECT * FROM {table}"
         return await self.execute(sql, fetch=True)
+
+    async def delete_from_table(self, table, field, value):
+        sql = f"DELETE FROM {table} WHERE {field}=$1 CASCADE"
+        await self.execute(sql, value, execute=True)
 
     async def drop_table(self, table):
         sql = f"DROP TABLE {table} CASCADE"
