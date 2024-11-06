@@ -198,8 +198,8 @@ async def partner_check_rtr(message: types.Message, state: FSMContext):
             )
             technology_ids.append(technology_['id'])
 
-        await db.add_partner_technologies(
-            partner_id=user_id, technology_ids=technology_ids,
+        await db.add_technologies(
+            user_id=user_id, technology_ids=technology_ids,
         )
 
         srch_id = await db.add_srch_partner(
