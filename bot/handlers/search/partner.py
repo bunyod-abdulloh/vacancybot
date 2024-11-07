@@ -65,7 +65,7 @@ state_questions = {
 
 
 # Helper function to check if the current state is in state_questions
-async def is_in_state_questions(state: FSMContext):
+async def is_in_state_questions(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     return current_state in state_questions
 
