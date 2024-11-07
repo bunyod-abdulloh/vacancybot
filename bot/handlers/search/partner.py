@@ -49,23 +49,41 @@ async def start_partner_search(message: types.Message, state: FSMContext):
 state_questions = {
     LookingPartner.fullname: ("fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
     LookingPartner.technology: ("technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
-    LookingPartner.phone: ("phone", "🌎 Hududingiz qaysi? (O'zbekistonda..."),
-    LookingPartner.region: ("region", "💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?..."),
-    LookingPartner.cost: ("cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?"),
-    LookingPartner.profession: ("profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nQaysi vaqt oralig'ida..."),
+    LookingPartner.phone: (
+        "phone",
+        "🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
+        "Turkiya, Istanbul</b>"),
+    LookingPartner.region: (
+        "region", "💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?\n\n<b>Namuna: bepul yoki summani kiriting</b>"),
+    LookingPartner.cost: (
+        "cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n<b>Namuna: Python Developer, Senior</b>"),
+    LookingPartner.profession: (
+        "profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n"
+                      "<b>Namuna: 09:00 - 21:00</b>"),
     LookingPartner.apply_time: ("apply_time", "📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing")
 }
 
 
-@router.message(F.text & state_questions)
+# Helper function to check if the current state is in state_questions
+async def is_in_state_questions(state: FSMContext):
+    current_state = await state.get_state()
+    return current_state in state_questions
+
+
+@router.message(is_in_state_questions)
 async def handle_state_data(message: types.Message, state: FSMContext):
     current_state = await state.get_state()
     data_key, question = state_questions[current_state]
-    next_state = list(state_questions.keys())[list(state_questions.keys()).index(current_state) + 1]
+
+    # Get the next state based on the order in the state_questions dictionary
+    state_keys = list(state_questions.keys())
+    current_index = state_keys.index(current_state)
+    next_state = state_keys[current_index + 1] if current_index + 1 < len(state_keys) else LookingPartner.maqsad
+
     await collect_data(message, state, next_state, question, data_key)
 
 
-@router.message(LookingPartner.maqsad)
+@router.message(F.text, LookingPartner.maqsad)
 async def finalize_partner_data(message: types.Message, state: FSMContext):
     await state.update_data(maqsad=message.text)
     data_text = await partner_data_text(message, state)
@@ -75,18 +93,22 @@ async def finalize_partner_data(message: types.Message, state: FSMContext):
     await state.set_state(LookingPartner.check)
 
 
-@router.message(LookingPartner.check)
+@router.message(F.text, LookingPartner.check)
 async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
     if message.text == "♻️ Qayta kiritish":
         await start_partner_search(message, state)
     elif message.text == "✅ Tasdiqlash":
         data = await partner_data_text(message, state, save_to_db=True)
+
+        # Adding data to the database
         user = await db.add_user(telegram_id=message.from_user.id, username=f'@{message.from_user.username}',
                                  full_name=data['fullname'], phone=data['phone'], age=None)
         region = await db.add_entry("regions", "region_name", data['region'])
         profession = await db.add_entry("professions", "profession_name", data['profession'])
-        technology_ids = [await db.add_entry("technologies", "technology_name", tech.strip().lower())['id']
-                          for tech in data['technologies'].split(",")]
+        technology_ids = []
+        for tech in data['technologies'].split(","):
+            tech_entry = await db.add_entry("technologies", "technology_name", tech.strip().lower())
+            technology_ids.append(tech_entry['id'])
 
         await db.add_technologies(user_id=user['id'], technology_ids=technology_ids)
         search_id = await db.add_srch_partner(user_id=user['id'], region_id=region['id'],
@@ -97,6 +119,8 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
                              f"So'rov raqami: {message.from_user.id}{search_id['id']}\n\n"
                              f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
         await message.answer(text=confirmation_text, reply_markup=main_dkb())
+
+        # Sending admin notification
         data_text = await partner_data_text(message, state)
         await bot.send_message(chat_id=BIG_ADMIN,
                                text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{data_text}",
