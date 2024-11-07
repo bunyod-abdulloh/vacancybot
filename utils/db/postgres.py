@@ -115,9 +115,9 @@ class Database:
             sql_select = "SELECT id FROM users WHERE telegram_id=$1"
             return await self.execute(sql_select, telegram_id, fetchrow=True)
 
-    async def update_user(self, telegram_id, field, value):
+    async def update_user(self, field, value):
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
-        return await self.execute(sql, value, telegram_id, fetchrow=True)
+        return await self.execute(sql, value, fetchrow=True)
 
     async def delete_user(self, telegram_id):
         sql = "DELETE FROM users WHERE telegram_id=$1"

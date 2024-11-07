@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import JobSearch
+from loader import db
 
 router = Router()
 
@@ -117,6 +118,18 @@ async def js_check(message: types.Message, state: FSMContext):
         await js_ish_joyi_kerak(message, state)
     elif confirmation == "✅ Tasdiqlash":
         data = await js_datas(message, state, save_to_db=True)
+
+        telegram_id = message.from_user.id
+        full_name = message.from_user.full_name
+        username = f'@{message.from_user.username}'
+        user = await db.add_user(
+            telegram_id, username, full_name, data['js_phone'], data['js_age']
+        )
+
+        if user['age'] is None:
+            await db.update_user(
+
+            )
         print(data)
         # Ma'lumotlarni saqlash bo'limi
         await message.answer("Ma'lumotlaringiz saqlandi!")

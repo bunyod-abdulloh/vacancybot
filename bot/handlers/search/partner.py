@@ -177,7 +177,7 @@ async def partner_check_rtr(message: types.Message, state: FSMContext):
 
         user = await db.add_user(
             telegram_id=telegram_id, username=f'@{message.from_user.username}',
-            full_name=save_to_db['fullname'], phone=save_to_db['phone']
+            full_name=save_to_db['fullname'], phone=save_to_db['phone'], age=None
         )
 
         user_id = user['id']
