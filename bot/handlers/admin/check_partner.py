@@ -1,7 +1,7 @@
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
-from bot.keyboards.inline.admin_ikb import partner_check_ikb
+from bot.keyboards.inline.admin_ikb import second_check_ikb
 from bot.states.admin_states import AdminCheck
 from loader import bot, db
 
@@ -11,7 +11,7 @@ router = Router()
 # Utility function to split callback data
 def split_data(data):
     parts = data.split(":")
-    return (parts[1], parts[2]) if len(parts) > 2 else (None, None)
+    return (parts[1], parts[2], parts[3]) if len(parts) > 3 else (None, None)
 
 
 # Send message to user
@@ -42,14 +42,14 @@ async def delete_user_data(user_id):
         await db.delete_from_table("srch_partner", "user_id", user_id)
         await db.delete_user(telegram_id=user_id)
     except Exception as e:
-        print(f"Failed to delete user data for {user_id}: {e}")
+        pass
 
 
 # Handle admin approval of partner request
 @router.callback_query(F.data.startswith('admincheck_yes:'))
 async def admincheck_partner(call: types.CallbackQuery):
-    user_id, row_id = split_data(call.data)
-    text = f"Sizning Sherik kerak bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz qabul qilindi!"
+    user_id, row_id, department = split_data(call.data)
+    text = f"Sizning {department} bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz qabul qilindi!"
     await send_message(user_id, text)
     await call.message.edit_text("Habar foydalanuvchiga yuborildi!")
 
@@ -57,9 +57,9 @@ async def admincheck_partner(call: types.CallbackQuery):
 # Handle admin rejection of partner request (step 1: ask for reason)
 @router.callback_query(F.data.startswith("admincheck_no:"))
 async def admincheck_no_rtr(call: types.CallbackQuery, state: FSMContext):
-    user_id, row_id = split_data(call.data)
+    user_id, row_id, department = split_data(call.data)
     await call.message.edit_text("Rad etilish sababini kiriting")
-    await state.update_data(pr_user_id=user_id, pr_row_id=row_id)
+    await state.update_data(pr_user_id=user_id, pr_row_id=row_id, department=department)
     await state.set_state(AdminCheck.partner_no)
 
 
@@ -69,8 +69,9 @@ async def admincheck_no_partner(message: types.Message, state: FSMContext):
     await state.update_data(pr_no_text=message.text)
     data = await state.get_data()
 
-    user_id, row_id = data['pr_user_id'], data['pr_row_id']
-    await message.answer("Kiritgan habaringizni tasdiqlaysizmi?", reply_markup=partner_check_ikb(user_id, row_id))
+    user_id, row_id, department = data['pr_user_id'], data['pr_row_id'], data['department']
+    await message.answer("Kiritgan habaringizni tasdiqlaysizmi?", reply_markup=second_check_ikb(
+        user_id, row_id, department))
     await state.set_state(AdminCheck.partner_no_)
 
 
@@ -79,11 +80,12 @@ async def admincheck_no_partner(message: types.Message, state: FSMContext):
 async def admincheck_no_partner_rtr(call: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
 
-    user_id, row_id = int(data['pr_user_id']), data['pr_row_id']
+    user_id, row_id, department = int(data['pr_user_id']), data['pr_row_id'], data['department']
     reason = data['pr_no_text']
 
     await send_message(user_id,
-                       f"Sizning <b>Sherik kerak</b> bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz rad etildi!\n\nSabab: {reason}")
+                       f"Sizning <b>Sherik kerak</b> bo'limi uchun yuborgan {user_id}{row_id} raqamli "
+                       f"so'rovingiz rad etildi!\n\nSabab: {reason}")
     await delete_user_data(user_id)
     await call.message.edit_text("Habar foydalanuvchiga yuborildi!")
     await state.clear()

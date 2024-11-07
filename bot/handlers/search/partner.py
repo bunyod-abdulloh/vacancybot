@@ -1,7 +1,7 @@
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
-from bot.keyboards.inline.admin_ikb import admin_check_ikb
+from bot.keyboards.inline.admin_ikb import first_check_ikb
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import LookingPartner
@@ -11,219 +11,97 @@ from loader import bot, db
 router = Router()
 
 
-async def ask_for_fullname(message: types.Message, state: FSMContext):
-    await message.answer(text="👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>")
-    await state.set_state(LookingPartner.fullname)
+# Common function to collect user data and move to the next state
+async def collect_data(message: types.Message, state: FSMContext, next_state, question, data_key):
+    await state.update_data({data_key: message.text})
+    await message.answer(text=question)
+    await state.set_state(next_state)
 
 
-async def partner_datas(message: types.Message, state: FSMContext, save_to_db: bool = False):
+# Generates the partner data message for review or database storage
+async def partner_data_text(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
-    techs = data['technologies'].split(",")
-    techs_ = str()
-    for tech in techs:
-        techs_ += f" #{tech.lstrip().lower()}"
-    region = data['region'].split(" ")
+    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
+    region = data['region'].split(" ")[0]
+
     if save_to_db:
         return data
-    else:
-        text = (f"👤 <b>Sherik:</b> {data['fullname']}\n"
-                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
-                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-                f"📞 <b>Aloqa</b> {data['phone']}\n"
-                f"🌎 <b>Hudud:</b> {data['region']}\n"
-                f"💰 <b>Narx:</b> {data['cost']}\n"
-                f"💻 <b>Kasbi:</b> {data['profession']}\n"
-                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
-                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
-                f"#sherik {techs_} #{region[0]}")
-        return text
+
+    return (f"👤 <b>Sherik:</b> {data['fullname']}\n"
+            f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
+            f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
+            f"📞 <b>Aloqa</b> {data['phone']}\n"
+            f"🌎 <b>Hudud:</b> {data['region']}\n"
+            f"💰 <b>Narx:</b> {data['cost']}\n"
+            f"💻 <b>Kasbi:</b> {data['profession']}\n"
+            f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
+            f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
+            f"#sherik {techs} #{region}")
 
 
 @router.message(F.text == "Sherik kerak")
-async def search_partner_rtr(message: types.Message, state: FSMContext):
-    await ask_for_fullname(
-        message, state
-    )
+async def start_partner_search(message: types.Message, state: FSMContext):
+    await collect_data(message, state, LookingPartner.fullname,
+                       "👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>", 'fullname')
 
 
-@router.message(LookingPartner.fullname)
-async def get_fullname_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        fullname=message.text
-    )
-    await message.answer(
-        text="<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting (texnologiya nomlarini vergul "
-             "bilan ajrating).\n\n<b>Namuna: Java, Python, C++</b>"
-    )
-    await state.set_state(
-        LookingPartner.technology
-    )
+# Define the state transitions and their questions
+state_questions = {
+    LookingPartner.fullname: ("fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
+    LookingPartner.technology: ("technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
+    LookingPartner.phone: ("phone", "🌎 Hududingiz qaysi? (O'zbekistonda..."),
+    LookingPartner.region: ("region", "💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?..."),
+    LookingPartner.cost: ("cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?"),
+    LookingPartner.profession: ("profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nQaysi vaqt oralig'ida..."),
+    LookingPartner.apply_time: ("apply_time", "📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing")
+}
 
 
-@router.message(LookingPartner.technology)
-async def get_technologies_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        technologies=message.text
-    )
-    await message.answer(
-        text="📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting\n\n<b>Namuna: +998971234567</b>"
-    )
-    await state.set_state(
-        LookingPartner.phone
-    )
-
-
-@router.message(LookingPartner.phone)
-async def get_phone_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        phone=message.text
-    )
-    await message.answer(
-        text="🌎 Hududingiz qaysi?\n\n"
-             "(O'zbekistonda bo'lsangiz viloyat va shahar nomini, chet elda bo'lsangiz davlat va shahar nomini "
-             "kiriting)\n\n"
-             "<b>Namuna: Farg'ona, Qo'qon yoki Turkiya, Istanbul</b>"
-    )
-    await state.set_state(
-        LookingPartner.region
-    )
-
-
-@router.message(LookingPartner.region)
-async def get_region_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        region=message.text
-    )
-    await message.answer(
-        text="💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?\n(bepul bo'lsa bepul deb yozing, to'lov qiladigan "
-             "bo'lsangiz summani kiriting)<b>\n\nNamuna: 1.200.000 so'm yoki $</b>"
-    )
-    await state.set_state(
-        LookingPartner.cost
-    )
-
-
-@router.message(LookingPartner.cost)
-async def get_cost_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        cost=message.text
-    )
-    await message.answer(
-        text="👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n"
-             "<b>Namuna: Python Developer, Senior</b>"
-    )
-    await state.set_state(
-        LookingPartner.profession
-    )
-
-
-@router.message(LookingPartner.profession)
-async def get_profession_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        profession=message.text
-    )
-    await message.answer(
-        text="🕰 <b>Murojaat qilish vaqti:</b>\n\nQaysi vaqt oralig'ida murojaat qilish mumkin?\n\n"
-             "<b>Namuna: 09:00 - 21:00</b>"
-    )
-    await state.set_state(
-        LookingPartner.apply_time
-    )
-
-
-@router.message(LookingPartner.apply_time)
-async def get_apply_time_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        apply_time=message.text
-    )
-    await message.answer(
-        text="📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing"
-    )
-    await state.set_state(
-        LookingPartner.maqsad
-    )
+@router.message(F.text & state_questions)
+async def handle_state_data(message: types.Message, state: FSMContext):
+    current_state = await state.get_state()
+    data_key, question = state_questions[current_state]
+    next_state = list(state_questions.keys())[list(state_questions.keys()).index(current_state) + 1]
+    await collect_data(message, state, next_state, question, data_key)
 
 
 @router.message(LookingPartner.maqsad)
-async def get_maqsad_rtr(message: types.Message, state: FSMContext):
-    await state.update_data(
-        maqsad=message.text
-    )
-    datas = await partner_datas(
-        message, state
-    )
-    await message.answer(
-        text=datas
-    )
-    await message.answer(
-        text="Kiritilgan barcha ma'lumotlarni tekshirib kerakli tugmani bosing", reply_markup=check_dkb
-    )
+async def finalize_partner_data(message: types.Message, state: FSMContext):
+    await state.update_data(maqsad=message.text)
+    data_text = await partner_data_text(message, state)
+    await message.answer(text=data_text)
+    await message.answer(text="Kiritilgan barcha ma'lumotlarni tekshirib kerakli tugmani bosing",
+                         reply_markup=check_dkb)
     await state.set_state(LookingPartner.check)
 
 
 @router.message(LookingPartner.check)
-async def partner_check_rtr(message: types.Message, state: FSMContext):
-    telegram_id = message.from_user.id
-
+async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
     if message.text == "♻️ Qayta kiritish":
-        await ask_for_fullname(
-            message, state
-        )
+        await start_partner_search(message, state)
     elif message.text == "✅ Tasdiqlash":
+        data = await partner_data_text(message, state, save_to_db=True)
+        user = await db.add_user(telegram_id=message.from_user.id, username=f'@{message.from_user.username}',
+                                 full_name=data['fullname'], phone=data['phone'], age=None)
+        region = await db.add_entry("regions", "region_name", data['region'])
+        profession = await db.add_entry("professions", "profession_name", data['profession'])
+        technology_ids = [await db.add_entry("technologies", "technology_name", tech.strip().lower())['id']
+                          for tech in data['technologies'].split(",")]
 
-        save_to_db = await partner_datas(
-            message, state, save_to_db=True
-        )
+        await db.add_technologies(user_id=user['id'], technology_ids=technology_ids)
+        search_id = await db.add_srch_partner(user_id=user['id'], region_id=region['id'],
+                                              profession_id=profession['id'],
+                                              apply_time=data['apply_time'], cost=data['cost'], maqsad=data['maqsad'])
 
-        user = await db.add_user(
-            telegram_id=telegram_id, username=f'@{message.from_user.username}',
-            full_name=save_to_db['fullname'], phone=save_to_db['phone'], age=None
-        )
-
-        user_id = user['id']
-
-        region = await db.add_entry(
-            table="regions", field="region_name", value=save_to_db.get('region')
-        )
-        profession = await db.add_entry(
-            table="professions", field="profession_name", value=save_to_db.get('profession')
-        )
-
-        technologies = save_to_db.get('technologies', '').split(",")
-        technology_ids = []
-
-        for technology in technologies:
-            technology_ = await db.add_entry(
-                table="technologies", field="technology_name", value=technology.strip().lower()
-            )
-            technology_ids.append(technology_['id'])
-
-        await db.add_technologies(
-            user_id=user_id, technology_ids=technology_ids,
-        )
-
-        srch_id = await db.add_srch_partner(
-            user_id=user_id, region_id=region['id'], profession_id=profession['id'],
-            apply_time=save_to_db['apply_time'], cost=save_to_db['cost'], maqsad=save_to_db['maqsad']
-        )
-
-        datas = await partner_datas(
-            message, state
-        )
-
-        await message.answer(
-            text=f"Ma'lumotlaringiz adminga yuborildi!\nSo'rov raqami: {telegram_id}{srch_id['id']}\n\n"
-                 f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!",
-            reply_markup=main_dkb()
-        )
-
-        await bot.send_message(
-            chat_id=BIG_ADMIN,
-            text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{datas}",
-            reply_markup=admin_check_ikb(
-                user_id=message.from_user.id, row_id=srch_id['id']
-            )
-        )
+        confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
+                             f"So'rov raqami: {message.from_user.id}{search_id['id']}\n\n"
+                             f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
+        await message.answer(text=confirmation_text, reply_markup=main_dkb())
+        data_text = await partner_data_text(message, state)
+        await bot.send_message(chat_id=BIG_ADMIN,
+                               text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{data_text}",
+                               reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=search_id['id'],
+                                                            department="Sherik kerak"))
         await state.clear()
     else:
         await state.clear()
