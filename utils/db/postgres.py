@@ -33,71 +33,68 @@ class Database:
 
     # ======================= TABLE CREATION =======================
     async def create_tables(self):
-        user_table = """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            telegram_id BIGINT NOT NULL UNIQUE,
-            full_name VARCHAR(255) NULL,
-            username VARCHAR(255) NULL,
-            phone VARCHAR(50) NULL,
-            age VARCHAR(2) NULL            
-        );
-        """
-        region_table = """
-        CREATE TABLE IF NOT EXISTS regions (
-            id SERIAL PRIMARY KEY,
-            region_name VARCHAR(500) NOT NULL UNIQUE
-        );
-        """
-        profession_table = """
-        CREATE TABLE IF NOT EXISTS professions (
-            id SERIAL PRIMARY KEY,
-            profession_name VARCHAR(255) NOT NULL UNIQUE
-        );
-        """
-        technology_table = """
-        CREATE TABLE IF NOT EXISTS technologies (
-            id SERIAL PRIMARY KEY,
-            technology_name VARCHAR(500) NOT NULL UNIQUE
-        );
-        """
-        partner_technology_table = """
-        CREATE TABLE IF NOT EXISTS partner_technologies (
-            user_id BIGINT NOT NULL REFERENCES users(id),
-            technology_id INT NOT NULL REFERENCES technologies(id),            
-            PRIMARY KEY (user_id, technology_id)
-        );
-        """
-        srch_partner_table = """
-        CREATE TABLE IF NOT EXISTS srch_partner (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT NOT NULL REFERENCES users(id),            
-            region_id INT NULL REFERENCES regions(id),
-            profession_id INT NULL REFERENCES professions(id),
-            apply_time VARCHAR(60) NULL,
-            cost VARCHAR(60) NULL,
-            maqsad VARCHAR(2000) NULL              
-        );
-        """
-        srch_job_table = """
-                CREATE TABLE IF NOT EXISTS srch_job (
-                    id SERIAL PRIMARY KEY,
-                    user_id BIGINT NOT NULL REFERENCES users(id),            
-                    region_id INT NULL REFERENCES regions(id),
-                    profession_id INT NULL REFERENCES professions(id),
-                    apply_time VARCHAR(60) NULL,
-                    cost VARCHAR(60) NULL,
-                    maqsad VARCHAR(2000) NULL              
-                );
-                """
+        queries = [
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                telegram_id BIGINT NOT NULL UNIQUE,
+                full_name VARCHAR(255),
+                username VARCHAR(255),
+                phone VARCHAR(50),
+                age VARCHAR(2)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS regions (
+                id SERIAL PRIMARY KEY,
+                region_name VARCHAR(500) NOT NULL UNIQUE
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS professions (
+                id SERIAL PRIMARY KEY,
+                profession_name VARCHAR(255) NOT NULL UNIQUE
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS technologies (
+                id SERIAL PRIMARY KEY,
+                technology_name VARCHAR(500) NOT NULL UNIQUE
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS partner_technologies (
+                user_id BIGINT NOT NULL REFERENCES users(id),
+                technology_id INT NOT NULL REFERENCES technologies(id),
+                PRIMARY KEY (user_id, technology_id)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS srch_partner (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(id),
+                region_id INT REFERENCES regions(id),
+                profession_id INT REFERENCES professions(id),
+                apply_time VARCHAR(60),
+                cost VARCHAR(60),
+                maqsad VARCHAR(2000)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS srch_job (
+                id SERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(id),
+                region_id INT REFERENCES regions(id),
+                profession_id INT REFERENCES professions(id),
+                apply_time VARCHAR(60),
+                cost VARCHAR(60),
+                maqsad VARCHAR(2000)
+            );
+            """
+        ]
 
-        await self.execute(user_table, execute=True)
-        await self.execute(region_table, execute=True)
-        await self.execute(profession_table, execute=True)
-        await self.execute(technology_table, execute=True)
-        await self.execute(partner_technology_table, execute=True)
-        await self.execute(srch_partner_table, execute=True)
-        await self.execute(srch_job_table, execute=True)
+        for query in queries:
+            await self.execute(query, execute=True)
 
     # ======================= USERS CRUD =======================
     async def add_user(self, telegram_id, username=None, full_name=None, phone=None, age=None):
