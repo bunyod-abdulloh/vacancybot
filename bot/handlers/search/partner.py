@@ -22,18 +22,20 @@ async def collect_data(message: types.Message, state: FSMContext, next_state, qu
 async def partner_data_text(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
-    region = data['region'].split(" ")[0] or data['region'].split(",")[0]
-
-    return (f"👤 <b>Sherik:</b> {data['fullname']}\n"
-            f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
-            f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-            f"📞 <b>Aloqa</b> {data['phone']}\n"
-            f"🌎 <b>Hudud:</b> {data['region']}\n"
-            f"💰 <b>Narx:</b> {data['cost']}\n"
-            f"💻 <b>Kasbi:</b> {data['profession']}\n"
-            f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
-            f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
-            f"#sherik {techs} #{region}")
+    region = data['region'].split(",")[0] if "," in data['region'] else data['region'].split(" ")[0]
+    if save_to_db:
+        return data
+    else:
+        return (f"👤 <b>Sherik:</b> {data['fullname']}\n"
+                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
+                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
+                f"📞 <b>Aloqa</b> {data['phone']}\n"
+                f"🌎 <b>Hudud:</b> {data['region']}\n"
+                f"💰 <b>Narx:</b> {data['cost']}\n"
+                f"💻 <b>Kasbi:</b> {data['profession']}\n"
+                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
+                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
+                f"#sherik {techs} #{region}")
 
 
 @router.message(F.text == "Sherik kerak")
