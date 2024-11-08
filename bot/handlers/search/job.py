@@ -5,7 +5,7 @@ from bot.keyboards.inline.admin_ikb import first_check_ikb
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import JobSearch
-from data.config import BIG_ADMIN
+from data.config import ADMIN_GROUP
 from loader import db, bot
 
 router = Router()
@@ -141,7 +141,7 @@ async def js_check(message: types.Message, state: FSMContext):
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
                 reply_markup=main_dkb())
 
-            await bot.send_message(BIG_ADMIN, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
+            await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
                                               f"{await format_user_data(data, message.from_user.username)}",
                                    reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
                                                                 department="Ish joyi kerak"))

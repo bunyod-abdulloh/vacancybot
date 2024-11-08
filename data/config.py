@@ -5,8 +5,8 @@ env.read_env()
 
 # TEST_GROUP = env.str("TEST_GROUP")
 BOT_TOKEN = env.str("BOT_TOKEN")
-BIG_ADMIN = env.str("BIG_ADMIN")
 ADMINS = env.list("ADMINS")
+ADMIN_GROUP = env.str("ADMIN_GROUP")
 
 DB_USER = env.str("DB_USER")
 DB_PASS = env.str("DB_PASS")

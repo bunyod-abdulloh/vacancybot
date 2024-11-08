@@ -1,6 +1,7 @@
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
+from bot.filters.admin import ChatGroupFilter
 from bot.keyboards.inline.admin_ikb import second_check_ikb
 from bot.states.admin_states import AdminCheck
 from loader import bot, db
@@ -64,7 +65,7 @@ async def admincheck_no_rtr(call: types.CallbackQuery, state: FSMContext):
 
 
 # Handle admin rejection of partner request (step 2: confirm reason)
-@router.message(AdminCheck.partner_no)
+@router.message(ChatGroupFilter(), AdminCheck.partner_no)
 async def admincheck_no_partner(message: types.Message, state: FSMContext):
     await state.update_data(pr_no_text=message.text)
     data = await state.get_data()

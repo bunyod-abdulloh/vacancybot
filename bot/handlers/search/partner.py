@@ -5,7 +5,7 @@ from bot.keyboards.inline.admin_ikb import first_check_ikb
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
 from bot.states.user_states import LookingPartner
-from data.config import BIG_ADMIN
+from data.config import ADMIN_GROUP
 from loader import bot, db
 
 router = Router()
@@ -122,7 +122,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
 
         # Sending admin notification
         data_text = await partner_data_text(message, state)
-        await bot.send_message(chat_id=BIG_ADMIN,
+        await bot.send_message(chat_id=ADMIN_GROUP,
                                text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{data_text}",
                                reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=search_id['id'],
                                                             department="Sherik kerak"))
