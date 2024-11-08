@@ -1,2 +1,2 @@
-from .admin import IsBotAdminFilter
+from .admin import IsBotAdminFilter, ChatGroupCallbackFilter
 from .private_chat import ChatPrivateFilter

@@ -128,4 +128,5 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
                                                             department="Sherik kerak"))
         await state.clear()
     else:
-        await state.clear()
+        await message.answer(
+            text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")

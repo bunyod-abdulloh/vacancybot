@@ -10,4 +10,7 @@ class ChatPrivateFilter(BaseFilter):
         self.chat_type = chat_type
 
     async def __call__(self, message: Message) -> bool:
-        return message.chat.type == ChatType.PRIVATE
+        if message.chat.type == ChatType.SUPERGROUP:
+            return message.chat.type == ChatType.SUPERGROUP
+        elif message.chat.type == ChatType.PRIVATE:
+            return message.chat.type == ChatType.PRIVATE
