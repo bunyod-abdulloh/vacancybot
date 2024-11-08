@@ -22,7 +22,7 @@ async def send_message_(user_id, text, call):
         await call.message.edit_text(text=f"Failed to send message to {user_id}: {e}")
 
 
-async def alert_message(user_id, call):
+async def alert_message_check(user_id, call):
     user_data = await bot.get_chat(user_id)
     await call.message.edit_text(f"Habar foydalanuvchi {user_data.full_name} (@{user_data.username}) ga yuborildi!")
 
@@ -55,8 +55,23 @@ async def delete_user_data(user_id, call):
 async def admincheck_partner(call: types.CallbackQuery):
     user_id, row_id, department = split_data(call.data)
     text = f"Sizning {department} bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz qabul qilindi!"
+
+    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
+    region = data['region'].split(",")[0] if "," in data['region'] else data['region'].split(" ")[0]
+    if department == "Sherik kerak":
+        post = (f"{department.capitalize()}"
+                f"👤 < b > Sherik: < / b > {data['fullname']}\n"
+                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
+                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
+                f"📞 <b>Aloqa</b> {data['phone']}\n"
+                f"🌎 <b>Hudud:</b> {data['region']}\n"
+                f"💰 <b>Narx:</b> {data['cost']}\n"
+                f"💻 <b>Kasbi:</b> {data['profession']}\n"
+                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
+                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
+                f"#sherik {techs} #{region}")
     await send_message_(user_id, text, call)
-    await alert_message(user_id, call)
+    await alert_message_check(user_id, call)
 
 
 # Handle admin rejection of partner request (step 1: ask for reason)
@@ -93,5 +108,5 @@ async def admincheck_no_partner_rtr(call: types.CallbackQuery, state: FSMContext
                         f"so'rovingiz rad etildi!\n\nSabab: {reason}"
     await send_message_(user_id, rejection_message, call)
     await delete_user_data(user_id, call)
-    await alert_message(user_id, call)
+    await alert_message_check(user_id, call)
     await state.clear()

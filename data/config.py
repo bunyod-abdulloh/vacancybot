@@ -7,6 +7,7 @@ env.read_env()
 BOT_TOKEN = env.str("BOT_TOKEN")
 ADMINS = env.list("ADMINS")
 ADMIN_GROUP = env.str("ADMIN_GROUP")
+CHANNEL = env.str("CHANNEL")
 
 DB_USER = env.str("DB_USER")
 DB_PASS = env.str("DB_PASS")
