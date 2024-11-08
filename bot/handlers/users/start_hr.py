@@ -9,8 +9,7 @@ router = Router()
 @router.message(CommandStart())
 async def do_start(message: types.Message):
     full_name = message.from_user.full_name
-    text = (f"Assalom alaykum {full_name}!\n\nUstozShogird kanalining rasmiy botiga xush kelibsiz!\n\n"
-            "/help yordam buyrugi orqali nimalarga qodir ekanligimni bilib oling!")
+    text = f"Assalom alaykum {full_name}!\n\nKerakli bo'limni tanlang"
 
     await message.answer(
         text=text, reply_markup=main_dkb()
