@@ -22,10 +22,7 @@ async def collect_data(message: types.Message, state: FSMContext, next_state, qu
 async def partner_data_text(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
-    region = data['region'].split(" ")[0]
-
-    if save_to_db:
-        return data
+    region = data['region'].split(" ")[0] or data['region'].split(",")[0]
 
     return (f"👤 <b>Sherik:</b> {data['fullname']}\n"
             f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
