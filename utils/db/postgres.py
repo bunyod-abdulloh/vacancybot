@@ -140,12 +140,12 @@ class Database:
             """
         return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
-    async def add_srch_job(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
+    async def add_srch_job(self, user_id, profession_id, apply_time, cost, maqsad):
         sql = """
-            INSERT INTO srch_job (user_id, region_id, profession_id, apply_time, cost, maqsad)
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            INSERT INTO srch_job (user_id, profession_id, apply_time, cost, maqsad)
+            VALUES ($1, $2, $3, $4, $5) RETURNING id
             """
-        return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
+        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
     async def add_technologies(self, user_id, technology_ids):
         for technology_id in technology_ids:

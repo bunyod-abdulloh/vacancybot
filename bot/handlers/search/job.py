@@ -1,3 +1,5 @@
+import traceback
+
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 
@@ -52,11 +54,14 @@ async def js_full_name(message: types.Message, state: FSMContext):
 
 @router.message(JobSearch.age)
 async def js_age(message: types.Message, state: FSMContext):
-    await collect_info(
-        message, state, JobSearch.technology,
-        "<b>🧑‍💻 Texnologiya</b>\n\nTexnologiyalaringizni kiriting (vergul bilan ajrating).\n\n"
-        "<b>Namuna: Java, Python, C++</b>", 'js_age'
-    )
+    if message.text.isdigit() and len(message.text) == 2:
+        await collect_info(
+            message, state, JobSearch.technology,
+            "<b>🧑‍💻 Texnologiya</b>\n\nTexnologiyalaringizni kiriting (vergul bilan ajrating).\n\n"
+            "<b>Namuna: Java, Python, C++</b>", 'js_age'
+        )
+    else:
+        await message.answer(text="Namunada ko'rsatilganidek ikki honali son kiriting!")
 
 
 @router.message(JobSearch.technology)
@@ -133,7 +138,7 @@ async def js_check(message: types.Message, state: FSMContext):
             ]
 
             await db.add_technologies(user_id=user_id, technology_ids=technology_ids)
-            job_id = (await db.add_srch_job(user_id, region_id, profession_id, data['js_apply_time'], data['js_cost'],
+            job_id = (await db.add_srch_job(user_id, profession_id, data['js_apply_time'], data['js_cost'],
                                             data['js_maqsad']))['id']
 
             await message.answer(
@@ -142,13 +147,21 @@ async def js_check(message: types.Message, state: FSMContext):
                 reply_markup=main_dkb())
 
             await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
-                                              f"{await format_user_data(data, message.from_user.username)}",
+                                                f"{await format_user_data(data, message.from_user.username)}",
                                    reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
                                                                 department="Ish joyi kerak"))
             await state.clear()
         except Exception as err:
-            await message.answer(text=f"Xatolik {err}\n\nIltimos, so'rovnomani qayta to'ldiring!",
-                                 reply_markup=main_dkb())
+            tb = traceback.format_tb(err.__traceback__)  # Tracebackni matnli ro'yxat sifatida olish
+            trace = tb[0]
+            bot_properties = await bot.me()
+            bot_message = f"Bot: {bot_properties.full_name}"
+
+            await message.answer(text=f"{bot_message}\n\nXatolik:\n{trace}\n\n{err}")
+
+            # await message.answer(text="Xatolik mavjud!\n\nIltimos, so'rovnomani qayta to'ldiring!",
+            # reply_markup=main_dkb())
+
     else:
         await message.answer(
             text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")

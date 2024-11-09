@@ -29,7 +29,7 @@ async def send_and_alert(user_id, text, call):
 async def get_user_info(user_id, is_partner=False, is_job=False):
     user = await db.get_entry(table="users", field="telegram_id", value=user_id)
     user_datas = await db.get_entry(table="users_data", field="user_id", value=user['id'])
-
+    get_user = None
     if is_job:
         get_user = await db.get_entry(table="srch_job", field="user_id", value=user['id'])
     if is_partner:
