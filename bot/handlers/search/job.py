@@ -14,7 +14,7 @@ router = Router()
 # Optimized data formatting function
 async def format_user_data(data: dict, username: str):
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['js_technologies'].split(","))
-    region = data['js_region'].split(" ")[0] or data['js_region'].split(",")[0]
+    region = data['js_region'].split(",")[0].split(" ")[0]
     return (
         f"👨‍💼 <b>Xodim:</b> {data['js_fullname']}\n"
         f"🕑 <b>Yosh:</b> {data['js_age']}\n"
@@ -122,10 +122,10 @@ async def js_check(message: types.Message, state: FSMContext):
         try:
             data = await state.get_data()
             telegram_id = message.from_user.id
-            user_id = (await db.add_user(telegram_id, f'@{message.from_user.username}', message.from_user.full_name,
-                                         data['js_phone'], data['js_age']))['id']
-
             region_id = (await db.add_entry("regions", "region_name", data['js_region']))['id']
+            user_id = (await db.add_user(telegram_id, data['js_age'], region_id=region_id))['id']
+            await db.add_user_datas(user_id=user_id, full_name=data['js_fullname'],
+                                    username=f'@{message.from_user.username}', phone=data['js_phone'])
             profession_id = (await db.add_entry("professions", "profession_name", data['js_profession']))['id']
             technology_ids = [
                 (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
@@ -150,5 +150,5 @@ async def js_check(message: types.Message, state: FSMContext):
             await message.answer(text=f"Xatolik {err}\n\nIltimos, so'rovnomani qayta to'ldiring!",
                                  reply_markup=main_dkb())
     else:
-        await state.clear()
-        await message.answer("Invalid response")
+        await message.answer(
+            text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")

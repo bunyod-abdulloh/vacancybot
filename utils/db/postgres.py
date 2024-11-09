@@ -78,8 +78,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS srch_partner (
                 id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id),
-                region_id INT REFERENCES regions(id),
+                user_id BIGINT NOT NULL REFERENCES users(id),                
                 profession_id INT REFERENCES professions(id),
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
@@ -89,8 +88,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS srch_job (
                 id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id),
-                region_id INT REFERENCES regions(id),
+                user_id BIGINT NOT NULL REFERENCES users(id),                
                 profession_id INT REFERENCES professions(id),
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
@@ -107,13 +105,14 @@ class Database:
         sql_insert = """
         INSERT INTO users (telegram_id, age, region_id) 
         VALUES ($1, $2, $3) 
-        ON CONFLICT (telegram_id) DO NOTHING 
+        ON CONFLICT (telegram_id) 
+        DO UPDATE SET region_id = EXCLUDED.region_id
         RETURNING id
         """
         user = await self.execute(sql_insert, telegram_id, age, region_id, fetchrow=True)
 
         if user:
-            return user  # Yangi yozuv yaratildi
+            return user  # Yangi yozuv yaratildi yoki mavjud yozuv yangilandi
         else:
             sql_select = "SELECT id FROM users WHERE telegram_id=$1"
             return await self.execute(sql_select, telegram_id, fetchrow=True)
@@ -134,12 +133,12 @@ class Database:
         await self.execute(sql, telegram_id, execute=True)
 
     # ======================= SRCH_PARTNER CRUD =======================
-    async def add_srch_partner(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
+    async def add_srch_partner(self, user_id, profession_id, apply_time, cost, maqsad):
         sql = """
-            INSERT INTO srch_partner (user_id, region_id, profession_id, apply_time, cost, maqsad)
-            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            INSERT INTO srch_partner (user_id, profession_id, apply_time, cost, maqsad)
+            VALUES ($1, $2, $3, $4, $5) RETURNING id
             """
-        return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
+        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
     async def add_srch_job(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
         sql = """

@@ -22,14 +22,20 @@ async def collect_data(message: types.Message, state: FSMContext, next_state, qu
 async def partner_data_text(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['pr_technologies'].split(","))
-    region = data['pr_region'].split(",")[0] if "," in data['pr_region'] else data['pr_region'].split(" ")[0]
+
+    # Optimized region extraction
+    region = data['pr_region'].split(",")[0].split(" ")[0]
+
     if save_to_db:
-        return data
+        # Return only necessary fields for DB saving
+        return {key: data[key] for key in ('pr_fullname', 'pr_technologies', 'pr_phone', 'pr_region',
+                                           'pr_cost', 'pr_profession', 'pr_apply_time', 'pr_maqsad')}
     else:
+        # Formatted message with user data
         return (f"👤 <b>Sherik:</b> {data['pr_fullname']}\n"
                 f"🧑‍💻 <b>Texnologiya:</b> {data['pr_technologies']}\n"
                 f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-                f"📞 <b>Aloqa</b> {data['pr_phone']}\n"
+                f"📞 <b>Aloqa:</b> {data['pr_phone']}\n"
                 f"🌎 <b>Hudud:</b> {data['pr_region']}\n"
                 f"💰 <b>Narx:</b> {data['pr_cost']}\n"
                 f"💻 <b>Kasbi:</b> {data['pr_profession']}\n"
@@ -47,9 +53,9 @@ async def start_partner_search(message: types.Message, state: FSMContext):
 # Define the state transitions and their questions
 state_questions = {
     LookingPartner.fullname: (
-    "pr_fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
+        "pr_fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
     LookingPartner.technology: (
-    "pr_technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
+        "pr_technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
     LookingPartner.phone: (
         "pr_phone",
         "🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
@@ -60,7 +66,7 @@ state_questions = {
         "pr_cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n<b>Namuna: Python Developer, Senior</b>"),
     LookingPartner.profession: (
         "pr_profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n"
-                      "<b>Namuna: 09:00 - 21:00</b>"),
+                         "<b>Namuna: 09:00 - 21:00</b>"),
     LookingPartner.apply_time: ("pr_apply_time", "📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing")
 }
 
@@ -114,8 +120,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
             technology_ids.append(tech_entry['id'])
 
         await db.add_technologies(user_id=user['id'], technology_ids=technology_ids)
-        search_id = await db.add_srch_partner(user_id=user['id'], region_id=region['id'],
-                                              profession_id=profession['id'],
+        search_id = await db.add_srch_partner(user_id=user['id'], profession_id=profession['id'],
                                               apply_time=data['pr_apply_time'], cost=data['pr_cost'],
                                               maqsad=data['pr_maqsad'])
 
