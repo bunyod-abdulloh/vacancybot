@@ -128,7 +128,7 @@ async def js_check(message: types.Message, state: FSMContext):
             region_id = (await db.add_entry("regions", "region_name", data['js_region']))['id']
             profession_id = (await db.add_entry("professions", "profession_name", data['js_profession']))['id']
             technology_ids = [
-                (await db.add_entry("technologies", "technology_name", tech.strip().lower()))['id']
+                (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
                 for tech in data['js_technologies'].split(",")
             ]
 

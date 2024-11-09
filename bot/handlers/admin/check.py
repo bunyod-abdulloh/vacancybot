@@ -39,7 +39,7 @@ async def delete_user_data(user_id, call):
             await db.delete_from_table("regions", "id", srch_partner['region_id'])
             await db.delete_from_table("professions", "id", srch_partner['profession_id'])
 
-        partner_technologies = await db.get_partner_technologies(user_id=user_id)
+        partner_technologies = await db.get_technologies(user_id=user_id)
         for tech in partner_technologies:
             await db.delete_from_table("technologies", "id", tech['technology_id'])
 
@@ -55,21 +55,32 @@ async def delete_user_data(user_id, call):
 async def admincheck_partner(call: types.CallbackQuery):
     user_id, row_id, department = split_data(call.data)
     text = f"Sizning {department} bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz qabul qilindi!"
+    user = await db.get_entry(table="users", field="telegram_id", value=user_id)
+    technologies = str()
+    technologies_bottom = str()
+    get_technology = await db.get_technologies(user_id=user['id'])
+    if len(get_technology) == 1:
+        technologies = get_technology[0]['technology_name']
+        technologies_bottom = f"#{get_technology[0]['technology_name']}"
+    else:
+        for technology in get_technology:
+            get_technology_ = await db.get_entry(table="technologies", field="technology_id", value=technology['id'])
+            technologies += f"{get_technology_['technology_name']}, "
+            technologies_bottom += f"#{get_technology_['technology_name'].lower()} "
 
-    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
     region = data['region'].split(",")[0] if "," in data['region'] else data['region'].split(" ")[0]
     if department == "Sherik kerak":
         post = (f"{department.capitalize()}"
-                f"👤 < b > Sherik: < / b > {data['fullname']}\n"
-                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
-                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-                f"📞 <b>Aloqa</b> {data['phone']}\n"
+                f"👤 < b > Sherik: < / b > {user['full_name']}\n"
+                f"🧑‍💻 <b>Texnologiya:</b> {technologies}\n"
+                f"🔗 <b>Telegram:</b> {user['username']}\n"
+                f"📞 <b>Aloqa</b> {user['phone']}\n"
                 f"🌎 <b>Hudud:</b> {data['region']}\n"
                 f"💰 <b>Narx:</b> {data['cost']}\n"
                 f"💻 <b>Kasbi:</b> {data['profession']}\n"
                 f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
                 f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
-                f"#sherik {techs} #{region}")
+                f"#sherik {technologies_bottom} #{region}")
     await send_message_(user_id, text, call)
     await alert_message_check(user_id, call)
 

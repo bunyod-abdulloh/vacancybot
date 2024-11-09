@@ -37,17 +37,23 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
-                telegram_id BIGINT NOT NULL UNIQUE,
+                telegram_id BIGINT NOT NULL UNIQUE,                
+                age VARCHAR(2),                
+                region_id INT
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS users_data (                
+                user_id BIGINT NOT NULL UNIQUE REFERENCES users(id),
                 full_name VARCHAR(255),
                 username VARCHAR(255),
-                phone VARCHAR(50),
-                age VARCHAR(2)
+                phone VARCHAR(50)              
             );
             """,
             """
             CREATE TABLE IF NOT EXISTS regions (
                 id SERIAL PRIMARY KEY,
-                region_name VARCHAR(500) NOT NULL UNIQUE
+                region_name VARCHAR(255) NOT NULL UNIQUE
             );
             """,
             """
@@ -59,11 +65,11 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS technologies (
                 id SERIAL PRIMARY KEY,
-                technology_name VARCHAR(500) NOT NULL UNIQUE
+                technology_name VARCHAR(100) NOT NULL UNIQUE
             );
             """,
             """
-            CREATE TABLE IF NOT EXISTS partner_technologies (
+            CREATE TABLE IF NOT EXISTS user_technologies (
                 user_id BIGINT NOT NULL REFERENCES users(id),
                 technology_id INT NOT NULL REFERENCES technologies(id),
                 PRIMARY KEY (user_id, technology_id)
@@ -97,20 +103,27 @@ class Database:
             await self.execute(query, execute=True)
 
     # ======================= USERS CRUD =======================
-    async def add_user(self, telegram_id, username=None, full_name=None, phone=None, age=None):
+    async def add_user(self, telegram_id, age=None, region_id=None):
         sql_insert = """
-        INSERT INTO users (telegram_id, username, full_name, phone, age) 
-        VALUES ($1, $2, $3, $4, $5) 
+        INSERT INTO users (telegram_id, age, region_id) 
+        VALUES ($1, $2, $3) 
         ON CONFLICT (telegram_id) DO NOTHING 
         RETURNING id
         """
-        user = await self.execute(sql_insert, telegram_id, username, full_name, phone, age, fetchrow=True)
+        user = await self.execute(sql_insert, telegram_id, age, region_id, fetchrow=True)
 
         if user:
             return user  # Yangi yozuv yaratildi
         else:
             sql_select = "SELECT id FROM users WHERE telegram_id=$1"
             return await self.execute(sql_select, telegram_id, fetchrow=True)
+
+    async def add_user_datas(self, user_id, full_name, username, phone):
+        sql = """
+        INSERT INTO users_data (user_id, full_name, username, phone) 
+        VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO NOTHING
+        """
+        return await self.execute(sql, user_id, full_name, username, phone, fetchrow=True)
 
     async def update_user(self, field, value):
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
@@ -123,26 +136,26 @@ class Database:
     # ======================= SRCH_PARTNER CRUD =======================
     async def add_srch_partner(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
         sql = """
-        INSERT INTO srch_partner (user_id, region_id, profession_id, apply_time, cost, maqsad)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
-        """
+            INSERT INTO srch_partner (user_id, region_id, profession_id, apply_time, cost, maqsad)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            """
         return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
     async def add_srch_job(self, user_id, region_id, profession_id, apply_time, cost, maqsad):
         sql = """
-        INSERT INTO srch_job (user_id, region_id, profession_id, apply_time, cost, maqsad)
-        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
-        """
+            INSERT INTO srch_job (user_id, region_id, profession_id, apply_time, cost, maqsad)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
+            """
         return await self.execute(sql, user_id, region_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
 
     async def add_technologies(self, user_id, technology_ids):
         for technology_id in technology_ids:
             sql = f"""
-            INSERT INTO partner_technologies (user_id, technology_id)
-            VALUES ($1, $2)
-            ON CONFLICT (user_id, technology_id) DO NOTHING
-            RETURNING user_id
-            """
+                INSERT INTO user_technologies (user_id, technology_id)
+                VALUES ($1, $2)
+                ON CONFLICT (user_id, technology_id) DO NOTHING
+                RETURNING user_id
+                """
             await self.execute(sql, user_id, technology_id, fetchrow=True)
 
     async def update_srch_partner(self, user_id, field, value):
@@ -153,8 +166,8 @@ class Database:
         sql = "SELECT * FROM srch_partner WHERE user_id=$1"
         return await self.execute(sql, user_id, fetchrow=True)
 
-    async def get_partner_technologies(self, user_id):
-        sql = "SELECT * FROM partner_technologies WHERE user_id=$1"
+    async def get_technologies(self, user_id):
+        sql = "SELECT * FROM user_technologies WHERE user_id=$1"
         return await self.execute(sql, user_id, fetch=True)
 
     async def delete_srch_partner(self, user_id):
@@ -184,6 +197,10 @@ class Database:
         sql = f"DELETE FROM {table} WHERE {field}=$1 CASCADE"
         await self.execute(sql, value, execute=True)
 
-    async def drop_table(self, table):
-        sql = f"DROP TABLE {table} CASCADE"
-        await self.execute(sql, execute=True)
+    async def drop_tables(self):
+        tables = ['users', 'users_data', 'regions', 'professions', 'technologies', 'user_technologies', 'srch_partner',
+                  'srch_job']
+
+        for table in tables:
+            sql = f"DROP TABLE {table} CASCADE"
+            await self.execute(sql, execute=True)

@@ -21,20 +21,20 @@ async def collect_data(message: types.Message, state: FSMContext, next_state, qu
 # Generates the partner data message for review or database storage
 async def partner_data_text(message: types.Message, state: FSMContext, save_to_db: bool = False):
     data = await state.get_data()
-    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['technologies'].split(","))
-    region = data['region'].split(",")[0] if "," in data['region'] else data['region'].split(" ")[0]
+    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['pr_technologies'].split(","))
+    region = data['pr_region'].split(",")[0] if "," in data['pr_region'] else data['pr_region'].split(" ")[0]
     if save_to_db:
         return data
     else:
-        return (f"👤 <b>Sherik:</b> {data['fullname']}\n"
-                f"🧑‍💻 <b>Texnologiya:</b> {data['technologies']}\n"
+        return (f"👤 <b>Sherik:</b> {data['pr_fullname']}\n"
+                f"🧑‍💻 <b>Texnologiya:</b> {data['pr_technologies']}\n"
                 f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-                f"📞 <b>Aloqa</b> {data['phone']}\n"
-                f"🌎 <b>Hudud:</b> {data['region']}\n"
-                f"💰 <b>Narx:</b> {data['cost']}\n"
-                f"💻 <b>Kasbi:</b> {data['profession']}\n"
-                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
-                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
+                f"📞 <b>Aloqa</b> {data['pr_phone']}\n"
+                f"🌎 <b>Hudud:</b> {data['pr_region']}\n"
+                f"💰 <b>Narx:</b> {data['pr_cost']}\n"
+                f"💻 <b>Kasbi:</b> {data['pr_profession']}\n"
+                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['pr_apply_time']}\n"
+                f"📌 <b>Maqsad:</b> {data['pr_maqsad']}\n\n"
                 f"#sherik {techs} #{region}")
 
 
@@ -46,20 +46,22 @@ async def start_partner_search(message: types.Message, state: FSMContext):
 
 # Define the state transitions and their questions
 state_questions = {
-    LookingPartner.fullname: ("fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
-    LookingPartner.technology: ("technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
+    LookingPartner.fullname: (
+    "pr_fullname", "<b>🧑‍💻 Texnologiya</b>\n\nTalab qilinadigan texnologiyalarni kiriting..."),
+    LookingPartner.technology: (
+    "pr_technologies", "📞 <b>Aloqa</b>:\n\nBog'lanish uchun telefon raqamingizni kiriting..."),
     LookingPartner.phone: (
-        "phone",
+        "pr_phone",
         "🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
         "Turkiya, Istanbul</b>"),
     LookingPartner.region: (
-        "region", "💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?\n\n<b>Namuna: bepul yoki summani kiriting</b>"),
+        "pr_region", "💰 <b>Narxi:</b>\n\nTo'lov qilasizmi yoki bepulmi?\n\n<b>Namuna: bepul yoki summani kiriting</b>"),
     LookingPartner.cost: (
-        "cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n<b>Namuna: Python Developer, Senior</b>"),
+        "pr_cost", "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangiz?\n\n<b>Namuna: Python Developer, Senior</b>"),
     LookingPartner.profession: (
-        "profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n"
+        "pr_profession", "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n"
                       "<b>Namuna: 09:00 - 21:00</b>"),
-    LookingPartner.apply_time: ("apply_time", "📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing")
+    LookingPartner.apply_time: ("pr_apply_time", "📌 <b>Maqsad:</b>\n\nMaqsadingizni qisqacha yozing")
 }
 
 
@@ -84,7 +86,7 @@ async def handle_state_data(message: types.Message, state: FSMContext):
 
 @router.message(F.text, LookingPartner.maqsad)
 async def finalize_partner_data(message: types.Message, state: FSMContext):
-    await state.update_data(maqsad=message.text)
+    await state.update_data(pr_maqsad=message.text)
     data_text = await partner_data_text(message, state)
     await message.answer(text=data_text)
     await message.answer(text="Kiritilgan barcha ma'lumotlarni tekshirib kerakli tugmani bosing",
@@ -100,19 +102,22 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
         data = await partner_data_text(message, state, save_to_db=True)
 
         # Adding data to the database
-        user = await db.add_user(telegram_id=message.from_user.id, username=f'@{message.from_user.username}',
-                                 full_name=data['fullname'], phone=data['phone'], age=None)
-        region = await db.add_entry("regions", "region_name", data['region'])
-        profession = await db.add_entry("professions", "profession_name", data['profession'])
+        region = await db.add_entry("regions", "region_name", data['pr_region'])
+        profession = await db.add_entry("professions", "profession_name", data['pr_profession'])
+        user = await db.add_user(telegram_id=message.from_user.id, age=None, region_id=region['id'])
+        await db.add_user_datas(user_id=user['id'], full_name=data['pr_fullname'],
+                                username=f'@{message.from_user.username}', phone=data['pr_phone'])
+
         technology_ids = []
-        for tech in data['technologies'].split(","):
-            tech_entry = await db.add_entry("technologies", "technology_name", tech.strip().lower())
+        for tech in data['pr_technologies'].split(","):
+            tech_entry = await db.add_entry("technologies", "technology_name", tech.strip())
             technology_ids.append(tech_entry['id'])
 
         await db.add_technologies(user_id=user['id'], technology_ids=technology_ids)
         search_id = await db.add_srch_partner(user_id=user['id'], region_id=region['id'],
                                               profession_id=profession['id'],
-                                              apply_time=data['apply_time'], cost=data['cost'], maqsad=data['maqsad'])
+                                              apply_time=data['pr_apply_time'], cost=data['pr_cost'],
+                                              maqsad=data['pr_maqsad'])
 
         confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
                              f"So'rov raqami: {message.from_user.id}{search_id['id']}\n\n"
