@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 
 from bot.keyboards.inline.admin_ikb import second_check_ikb
 from bot.states.admin_states import AdminCheck
+from data.config import CHANNEL
 from loader import bot, db
 
 router = Router()
@@ -11,7 +12,7 @@ router = Router()
 # Utility function to split callback data
 def split_data(data):
     parts = data.split(":")
-    return parts[1], parts[2], parts[3] if len(parts) > 3 else (None, None, None)
+    return int(parts[1]), parts[2], parts[3] if len(parts) > 3 else (None, None, None)
 
 
 # Send message to user
@@ -53,36 +54,47 @@ async def delete_user_data(user_id, call):
 # Handle admin approval of partner request
 @router.callback_query(F.data.startswith('admincheck_yes:'))
 async def admincheck_partner(call: types.CallbackQuery):
-    user_id, row_id, department = split_data(call.data)
-    text = f"Sizning {department} bo'limi uchun yuborgan {user_id}{row_id} raqamli so'rovingiz qabul qilindi!"
-    user = await db.get_entry(table="users", field="telegram_id", value=user_id)
-    technologies = str()
-    technologies_bottom = str()
-    get_technology = await db.get_technologies(user_id=user['id'])
-    if len(get_technology) == 1:
-        technologies = get_technology[0]['technology_name']
-        technologies_bottom = f"#{get_technology[0]['technology_name']}"
-    else:
-        for technology in get_technology:
-            get_technology_ = await db.get_entry(table="technologies", field="technology_id", value=technology['id'])
-            technologies += f"{get_technology_['technology_name']}, "
-            technologies_bottom += f"#{get_technology_['technology_name'].lower()} "
+    user_telegram, row_id, department = split_data(call.data)
+    text = f"Sizning {department} bo'limi uchun yuborgan {user_telegram}{row_id} raqamli so'rovingiz qabul qilindi!"
+    try:
+        user = await db.get_entry(table="users", field="telegram_id", value=user_telegram)
+        technologies = str()
+        technologies_bottom = str()
+        get_technology = await db.get_technologies(user_id=user['id'])
+        if len(get_technology) == 1:
+            technologies = get_technology[0]['technology_name']
+            technologies_bottom = f"#{get_technology[0]['technology_name']}"
+        else:
+            for technology in get_technology:
+                get_technology_ = await db.get_entry(table="technologies", field="technology_id",
+                                                     value=technology['id'])
+                technologies += f"{get_technology_['technology_name']}, "
+                technologies_bottom += f"#{get_technology_['technology_name'].lower()} "
+        get_region = await db.get_entry(table="regions", field="id", value=user['region_id'])
+        region = get_region['region_name'].split(",")[0] if "," in get_region['region_name'] else \
+            get_region['region_name'].split(" ")[0]
 
-    region = data['region'].split(",")[0] if "," in data['region'] else data['region'].split(" ")[0]
-    if department == "Sherik kerak":
-        post = (f"{department.capitalize()}"
-                f"👤 < b > Sherik: < / b > {user['full_name']}\n"
-                f"🧑‍💻 <b>Texnologiya:</b> {technologies}\n"
-                f"🔗 <b>Telegram:</b> {user['username']}\n"
-                f"📞 <b>Aloqa</b> {user['phone']}\n"
-                f"🌎 <b>Hudud:</b> {data['region']}\n"
-                f"💰 <b>Narx:</b> {data['cost']}\n"
-                f"💻 <b>Kasbi:</b> {data['profession']}\n"
-                f"⌚️ <b>Murojaat qilish vaqti:</b> {data['apply_time']}\n"
-                f"📌 <b>Maqsad:</b> {data['maqsad']}\n\n"
-                f"#sherik {technologies_bottom} #{region}")
-    await send_message_(user_id, text, call)
-    await alert_message_check(user_id, call)
+        get_partner = await db.get_entry(table="srch_partner", field="user_id", value=user['id'])
+        get_profession = await db.get_entry(table="professions", field="id", value=get_partner['profession_id'])
+
+        if department == "Sherik kerak":
+            post = (f"{department.capitalize()}"
+                    f"👤 < b > Sherik: < / b > {user['full_name']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {technologies}\n"
+                    f"🔗 <b>Telegram:</b> {user['username']}\n"
+                    f"📞 <b>Aloqa</b> {user['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {region}\n"
+                    f"💰 <b>Narx:</b> {get_partner['cost']}\n"
+                    f"💻 <b>Kasbi:</b> {get_profession['profession_name']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_partner['apply_time']}\n"
+                    f"📌 <b>Maqsad:</b> {get_partner['maqsad']}\n\n"
+                    f"#sherik {technologies_bottom} #{region}")
+            await bot.send_message(chat_id=CHANNEL, text=post)
+        await send_message_(user_telegram, text, call)
+        await alert_message_check(user_telegram, call)
+
+    except Exception as err:
+        await call.message.edit_text(f"Error: {err}")
 
 
 # Handle admin rejection of partner request (step 1: ask for reason)

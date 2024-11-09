@@ -92,3 +92,4 @@ async def send_ad_to_users(call: types.CallbackQuery, state: FSMContext):
             text="Habar yuborish bekor qilindi."
         )
         await state.clear()
+
