@@ -71,7 +71,7 @@ def format_post_text(department, user_data, extra_data, profession, region, tech
     region_name = region['region_name']  # region nomini olish
 
     return (
-        f"{department.capitalize()}\n\n"
+        f"<b>{department.capitalize()}</b>\n\n"
         f"👤 <b>{'Sherik' if department == 'Sherik kerak' else 'Xodim'}:</b> {user_data['full_name']}\n"
         f"🧑‍💻 <b>Texnologiya:</b> {technologies}\n"
         f"🔗 <b>Telegram:</b> {user_data['username']}\n"

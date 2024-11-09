@@ -2,16 +2,40 @@ import traceback
 
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 from bot.keyboards.inline.admin_ikb import first_check_ikb
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
-from bot.states.user_states import JobSearch
 from data.config import ADMIN_GROUP
 from loader import db, bot
 
 router = Router()
 
+
+# Define state class with stages
+class JobSearch(StatesGroup):
+    collecting_data = State()
+    check = State()
+
+
+# Questions and corresponding keys for each step
+questions = [
+    ("👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>", 'js_fullname'),
+    ("Yoshingizni kiriting:\n\n<b>Namuna: 20</b>", 'js_age'),
+    ("<b>🧑‍💻 Texnologiya</b>\n\nTexnologiyalaringizni kiriting (vergul bilan ajrating).\n\n"
+     "<b>Namuna: Java, Python, C++</b>", 'js_technologies'),
+    ("📞 <b>Aloqa</b>:\n\nTelefon raqamingizni kiriting\n\n<b>Namuna: +998971234567</b>", 'js_phone'),
+    ("🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
+     "Turkiya, Istanbul</b>", 'js_region'),
+    ("💰 <b>Narxi:</b>\n\nKutilayotgan narxni kiriting:\n\n<b>Namuna: 15.000.000 so'm, "
+     "$10.000 yoki amaliyot/tajriba uchun</b>", 'js_cost'),
+    ("👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangizni kiriting:\n\n<b>Namuna: Python Developer, Senior</b>",
+     'js_profession'),
+    ("🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n<b>Namuna: 09:00 - 21:00</b>",
+     'js_apply_time'),
+    ("📌 <b>Maqsad:</b>\n\nMaqsadingizni yozing", 'js_maqsad')
+]
 
 # Optimized data formatting function
 async def format_user_data(data: dict, username: str):
@@ -32,93 +56,40 @@ async def format_user_data(data: dict, username: str):
     )
 
 
-# Optimized collect_info function
-async def collect_info(message: types.Message, state: FSMContext, next_state, question, data_key, markup=None):
-    await state.update_data({data_key: message.text})
-    await message.answer(text=question, reply_markup=markup)
-    await state.set_state(next_state)
-
-
+# Start handler
 @router.message(F.text == 'Ish joyi kerak')
 async def js_ish_joyi_kerak(message: types.Message, state: FSMContext):
-    await message.answer("👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>")
-    await state.set_state(JobSearch.full_name)
+    await message.answer(questions[0][0])
+    await state.update_data(prompt_index=0)
+    await state.set_state(JobSearch.collecting_data)
 
 
-# Handlers for collecting user information
-@router.message(JobSearch.full_name)
-async def js_full_name(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.age, "Yoshingizni kiriting:\n\n<b>Namuna: 20</b>",
-                       'js_fullname')
-
-
-@router.message(JobSearch.age)
-async def js_age(message: types.Message, state: FSMContext):
-    if message.text.isdigit() and len(message.text) == 2:
-        await collect_info(
-            message, state, JobSearch.technology,
-            "<b>🧑‍💻 Texnologiya</b>\n\nTexnologiyalaringizni kiriting (vergul bilan ajrating).\n\n"
-            "<b>Namuna: Java, Python, C++</b>", 'js_age'
-        )
-    else:
-        await message.answer(text="Namunada ko'rsatilganidek ikki honali son kiriting!")
-
-
-@router.message(JobSearch.technology)
-async def js_technology(message: types.Message, state: FSMContext):
-    await collect_info(
-        message, state, JobSearch.phone,
-        "📞 <b>Aloqa</b>:\n\nTelefon raqamingizni kiriting\n\n<b>Namuna: +998971234567</b>",
-        'js_technologies'
-    )
-
-
-@router.message(JobSearch.phone)
-async def js_phone(message: types.Message, state: FSMContext):
-    await collect_info(
-        message, state, JobSearch.region,
-        "🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
-        "Turkiya, Istanbul</b>", 'js_phone'
-    )
-
-
-@router.message(JobSearch.region)
-async def js_region(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.cost,
-                       "💰 <b>Narxi:</b>\n\nKutilayotgan narxni kiriting:\n\n<b>Namuna: 15.000.000 so'm, "
-                       "$10.000 yoki amaliyot/tajriba uchun</b>",
-                       'js_region')
-
-
-@router.message(JobSearch.cost)
-async def js_cost(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.profession,
-                       "👨🏻‍💻 <b>Kasbi:</b>\n\nKasbingiz va darajangizni kiriting:"
-                       "\n\n<b>Namuna: Python Developer, Senior</b>", 'js_cost')
-
-
-@router.message(JobSearch.profession)
-async def js_profession(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.apply_time,
-                       "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n"
-                       "<b>Namuna: 09:00 - 21:00</b>",
-                       'js_profession')
-
-
-@router.message(JobSearch.apply_time)
-async def js_apply_time(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.maqsad, "📌 <b>Maqsad:</b>\n\nMaqsadingizni yozing",
-                       'js_apply_time')
-
-
-@router.message(JobSearch.maqsad)
-async def js_maqsad(message: types.Message, state: FSMContext):
-    await collect_info(message, state, JobSearch.check, "Kiritilgan ma'lumotlarni tekshiring",
-                       'js_maqsad', check_dkb)
+# Unified handler for sequential data collection
+@router.message(JobSearch.collecting_data)
+async def collect_info(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    await message.answer(await format_user_data(data, message.from_user.username))
+    prompt_index = data.get("prompt_index", 0)
+
+    # Validating age input
+    if questions[prompt_index][1] == 'js_age' and not (message.text.isdigit() and len(message.text) == 2):
+        await message.answer("Namunada ko'rsatilganidek ikki honali son kiriting!")
+        return
+
+    # Save current response
+    await state.update_data({questions[prompt_index][1]: message.text})
+
+    # Move to the next question or end
+    if prompt_index + 1 < len(questions):
+        next_prompt = questions[prompt_index + 1][0]
+        await message.answer(next_prompt)
+        await state.update_data(prompt_index=prompt_index + 1)
+    else:
+        # Data collection completed
+        await message.answer("Kiritilgan ma'lumotlarni tekshiring", reply_markup=check_dkb)
+        await state.set_state(JobSearch.check)
 
 
+# Check and confirm handler
 @router.message(JobSearch.check)
 async def js_check(message: types.Message, state: FSMContext):
     if message.text == "♻️ Qayta kiritish":
@@ -152,15 +123,12 @@ async def js_check(message: types.Message, state: FSMContext):
                                                                 department="Ish joyi kerak"))
             await state.clear()
         except Exception as err:
-            tb = traceback.format_tb(err.__traceback__)  # Tracebackni matnli ro'yxat sifatida olish
+            tb = traceback.format_tb(err.__traceback__)
             trace = tb[0]
             bot_properties = await bot.me()
             bot_message = f"Bot: {bot_properties.full_name}"
 
             await message.answer(text=f"{bot_message}\n\nXatolik:\n{trace}\n\n{err}")
-
-            # await message.answer(text="Xatolik mavjud!\n\nIltimos, so'rovnomani qayta to'ldiring!",
-            # reply_markup=main_dkb())
 
     else:
         await message.answer(
