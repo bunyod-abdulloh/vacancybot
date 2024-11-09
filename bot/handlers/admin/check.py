@@ -95,6 +95,19 @@ async def admincheck_partner(call: types.CallbackQuery):
                 f"#sherik {technologies_bottom} #{region}")
         await bot.send_message(chat_id=CHANNEL, text=post)
 
+    if department == "Ish joyi kerak":
+        user, user_datas, get_partner, get_profession, get_region = await get_user_info(user_telegram, is_job=True)
+        technologies, technologies_bottom = await get_technologies(user['id'])
+        region = get_region['region_name'].split(',')[0].split(' ')[0]
+
+        post = (f"{department.capitalize()}\n\n"
+                f"<b>Xodim:</b> {user_datas['full_name']}\n"
+                f"<b>Yosh:</b> {user['age']}\n"
+                f"<b>Texnologiya:</b> {technologies}\n"
+                f"<b>Telegram:</b> {user_datas['username']}\n"
+                f"<b>Aloqa:</b> {user_datas['phone']}\n"
+                f"<b>Hudud:</b> {region}\n"
+                f"<b>Narx:</b> {get_partner['']}")
     await send_and_alert(user_telegram, text, call)
 
 
