@@ -22,7 +22,7 @@ class JobSearch(StatesGroup):
 # Questions and corresponding keys for each step
 questions = [
     ("👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>", 'js_fullname'),
-    ("Yoshingizni kiriting:\n\n<b>Namuna: 20</b>", 'js_age'),
+    ("🕑 Yoshingizni kiriting:\n\n<b>Namuna: 20</b>", 'js_age'),
     ("<b>🧑‍💻 Texnologiya</b>\n\nTexnologiyalaringizni kiriting (vergul bilan ajrating).\n\n"
      "<b>Namuna: Java, Python, C++</b>", 'js_technologies'),
     ("📞 <b>Aloqa</b>:\n\nTelefon raqamingizni kiriting\n\n<b>Namuna: +998971234567</b>", 'js_phone'),
@@ -36,6 +36,7 @@ questions = [
      'js_apply_time'),
     ("📌 <b>Maqsad:</b>\n\nMaqsadingizni yozing", 'js_maqsad')
 ]
+
 
 # Optimized data formatting function
 async def format_user_data(data: dict, username: str):
@@ -85,7 +86,9 @@ async def collect_info(message: types.Message, state: FSMContext):
         await state.update_data(prompt_index=prompt_index + 1)
     else:
         # Data collection completed
-        await message.answer("Kiritilgan ma'lumotlarni tekshiring", reply_markup=check_dkb)
+        data_ = await state.get_data()
+        user_data = await format_user_data(data=data_, username=message.from_user.username)
+        await message.answer(f"Kiritilgan ma'lumotlarni tekshiring\n\n{user_data}", reply_markup=check_dkb)
         await state.set_state(JobSearch.check)
 
 
