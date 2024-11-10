@@ -2,6 +2,10 @@ from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from bot.keyboards.reply.main_dkb import main_dkb
+from bot.keyboards.reply.users_dkb import check_dkb
+from loader import db
+
 router = Router()
 
 # Define text prompts
@@ -21,6 +25,7 @@ text_prompts = [
 # Define states
 class NeedWorkerStates(StatesGroup):
     collecting_data = State()
+    check = State()
 
 
 # Start handler
@@ -49,7 +54,8 @@ async def collect_worker_info(message: types.Message, state: FSMContext):
     else:
         # Data collection completed
         user_data = await state.get_data()
-        await message.answer("Ma'lumotlar muvaffaqiyatli qabul qilindi!")
+        await message.answer("Ma'lumotlar muvaffaqiyatli qabul qilindi!\n\nTekshirib kerakli tugmani bosing:",
+                             reply_markup=check_dkb)
 
         text = (f"<b>Xodim kerak</b>\n\n"
                 f"🏢 <b>Idora:</b> {user_data['response_0']}\n"
@@ -63,5 +69,35 @@ async def collect_worker_info(message: types.Message, state: FSMContext):
                 f"💰 <b>Maosh:</b> {user_data['response_7']}\n"
                 f"‼️ <b>Qo'shimcha ma'lumotlar:</b> {user_data['response_8']}")
         await message.answer(text=text)
-        # Clear sta te and perform further processing as needed
+        await state.set_state(NeedWorkerStates.check)
+
+
+@router.message(NeedWorkerStates.check)
+async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
+    if message.text == "✅ Tasdiqlash":
+        data = await state.get_data()
+        user_id = (await db.add_user(telegram_id=message.from_user.id))['id']
+        await db.add_user_datas(user_id=user_id, full_name=message.from_user.full_name,
+                                username=f'@{message.from_user.username}', age=None, phone=data['response_2'])
+        technology_ids = [
+            (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
+            for tech in data['response_1'].split(",")
+        ]
+        await db.add_technologies(user_id=user_id, technology_ids=technology_ids)
+        region_id = (await db.add_entry(table="regions", field="region_name", value=data['response_3']))['id']
+        idora_id = (
+            await db.add_idoralar(idora_nomi=data['response_0'], masul=data['response_4'], qoshimcha=data['response_8'],
+                                  region_id=region_id))['id']
+        work_id = (await db.add_srch_worker(idora_id=idora_id, m_vaqti=data['response_5'], i_vaqti=data['response_6'],
+                                            maosh=data['response_7']))['id']
+
+        await message.answer(
+            f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{work_id}"
+            f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
+            reply_markup=main_dkb())
+
+        # await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
+        #                                     f"{await format_user_data(data, message.from_user.username)}",
+        #                        reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
+        #                                                     department="Ish joyi kerak"))
         await state.clear()

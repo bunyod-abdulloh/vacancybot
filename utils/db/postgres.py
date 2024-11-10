@@ -37,9 +37,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
-                telegram_id BIGINT NOT NULL UNIQUE,                
-                age VARCHAR(2),                
-                region_id INT
+                telegram_id BIGINT NOT NULL UNIQUE                                
             );
             """,
             """
@@ -47,6 +45,7 @@ class Database:
                 user_id BIGINT NOT NULL UNIQUE REFERENCES users(id),
                 full_name VARCHAR(255),
                 username VARCHAR(255),
+                age VARCHAR(2),
                 phone VARCHAR(50)              
             );
             """,
@@ -71,7 +70,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS user_technologies (
                 user_id BIGINT NOT NULL REFERENCES users(id),
-                technology_id INT NOT NULL REFERENCES technologies(id),
+                technology_id INTEGER NOT NULL REFERENCES technologies(id),
                 PRIMARY KEY (user_id, technology_id)
             );
             """,
@@ -79,20 +78,40 @@ class Database:
             CREATE TABLE IF NOT EXISTS srch_partner (
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL REFERENCES users(id),                
-                profession_id INT REFERENCES professions(id),
+                profession_id INTEGER REFERENCES professions(id),
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
-                maqsad VARCHAR(2000)
+                maqsad VARCHAR(2000),
+                region_id INTEGER REFERENCES regions(id)
             );
             """,
             """
             CREATE TABLE IF NOT EXISTS srch_job (
                 id SERIAL PRIMARY KEY,
                 user_id BIGINT NOT NULL REFERENCES users(id),                
-                profession_id INT REFERENCES professions(id),
+                profession_id INTEGER REFERENCES professions(id),
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
-                maqsad VARCHAR(2000)
+                maqsad VARCHAR(2000),
+                region_id INTEGER REFERENCES regions(id)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS idoralar (                
+                id SERIAL PRIMARY KEY,                
+                idora_nomi VARCHAR(255),
+                masul VARCHAR(255),                
+                qoshimcha VARCHAR(2000),
+                region_id INTEGER REFERENCES regions(id)
+            );
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS srch_worker (
+                id SERIAL PRIMARY KEY,                                
+                idora_id INTEGER NOT NULL REFERENCES idoralar(id),                                              
+                m_vaqti VARCHAR(60),
+                i_vaqti VARCHAR(60),
+                maosh VARCHAR(60)                
             );
             """
         ]
@@ -101,15 +120,11 @@ class Database:
             await self.execute(query, execute=True)
 
     # ======================= USERS CRUD =======================
-    async def add_user(self, telegram_id, age=None, region_id=None):
+    async def add_user(self, telegram_id):
         sql_insert = """
-        INSERT INTO users (telegram_id, age, region_id) 
-        VALUES ($1, $2, $3) 
-        ON CONFLICT (telegram_id) 
-        DO UPDATE SET region_id = EXCLUDED.region_id
-        RETURNING id
+        INSERT INTO users (telegram_id) VALUES ($1) ON CONFLICT (telegram_id) DO NOTHING RETURNING id
         """
-        user = await self.execute(sql_insert, telegram_id, age, region_id, fetchrow=True)
+        user = await self.execute(sql_insert, telegram_id, fetchrow=True)
 
         if user:
             return user  # Yangi yozuv yaratildi yoki mavjud yozuv yangilandi
@@ -117,12 +132,12 @@ class Database:
             sql_select = "SELECT id FROM users WHERE telegram_id=$1"
             return await self.execute(sql_select, telegram_id, fetchrow=True)
 
-    async def add_user_datas(self, user_id, full_name, username, phone):
+    async def add_user_datas(self, user_id, full_name, username, age, phone):
         sql = """
-        INSERT INTO users_data (user_id, full_name, username, phone) 
-        VALUES ($1, $2, $3, $4) ON CONFLICT (user_id) DO NOTHING
+        INSERT INTO users_data (user_id, full_name, username, age, phone) 
+        VALUES ($1, $2, $3, $4, $5) ON CONFLICT (user_id) DO NOTHING
         """
-        return await self.execute(sql, user_id, full_name, username, phone, fetchrow=True)
+        return await self.execute(sql, user_id, full_name, username, age, phone, fetchrow=True)
 
     async def update_user(self, field, value):
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
@@ -133,19 +148,33 @@ class Database:
         await self.execute(sql, telegram_id, execute=True)
 
     # ======================= SRCH_PARTNER CRUD =======================
-    async def add_srch_partner(self, user_id, profession_id, apply_time, cost, maqsad):
+    async def add_srch_partner(self, user_id, profession_id, apply_time, cost, maqsad, region_id):
         sql = """
-            INSERT INTO srch_partner (user_id, profession_id, apply_time, cost, maqsad)
-            VALUES ($1, $2, $3, $4, $5) RETURNING id
+            INSERT INTO srch_partner (user_id, profession_id, apply_time, cost, maqsad, region_id)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
             """
-        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
+        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, region_id, fetchrow=True)
 
-    async def add_srch_job(self, user_id, profession_id, apply_time, cost, maqsad):
+    async def add_srch_job(self, user_id, profession_id, apply_time, cost, maqsad, region_id):
         sql = """
-            INSERT INTO srch_job (user_id, profession_id, apply_time, cost, maqsad)
-            VALUES ($1, $2, $3, $4, $5) RETURNING id
+            INSERT INTO srch_job (user_id, profession_id, apply_time, cost, maqsad, region_id)
+            VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
             """
-        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, fetchrow=True)
+        return await self.execute(sql, user_id, profession_id, apply_time, cost, maqsad, region_id, fetchrow=True)
+
+    async def add_idoralar(self, idora_nomi, masul, qoshimcha, region_id):
+        sql = """
+            INSERT INTO idoralar (idora_nomi, masul, qoshimcha, region_id)
+            VALUES ($1, $2, $3, $4) RETURNING id
+            """
+        return await self.execute(sql, idora_nomi, masul, qoshimcha, region_id, fetchrow=True)
+
+    async def add_srch_worker(self, idora_id, m_vaqti, i_vaqti, maosh):
+        sql = """
+            INSERT INTO srch_worker (idora_id, m_vaqti, i_vaqti, maosh)
+            VALUES ($1, $2, $3, $4) RETURNING id
+            """
+        return await self.execute(sql, idora_id, m_vaqti, i_vaqti, maosh, fetchrow=True)
 
     async def add_technologies(self, user_id, technology_ids):
         for technology_id in technology_ids:
@@ -198,7 +227,7 @@ class Database:
 
     async def drop_tables(self):
         tables = ['users', 'users_data', 'regions', 'professions', 'technologies', 'user_technologies', 'srch_partner',
-                  'srch_job']
+                  'srch_job', 'idoralar', 'srch_worker']
 
         for table in tables:
             sql = f"DROP TABLE {table} CASCADE"
