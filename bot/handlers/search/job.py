@@ -100,29 +100,30 @@ async def js_check(message: types.Message, state: FSMContext):
     elif message.text == "✅ Tasdiqlash":
         try:
             data = await state.get_data()
-            telegram_id = message.from_user.id
-            region_id = (await db.add_entry("regions", "region_name", data['js_region']))['id']
-            user_id = (await db.add_user(telegram_id, data['js_age'], region_id=region_id))['id']
+            user_id = (await db.add_user(message.from_user.id))['id']
             await db.add_user_datas(user_id=user_id, full_name=data['js_fullname'],
-                                    username=f'@{message.from_user.username}', phone=data['js_phone'])
-            profession_id = (await db.add_entry("professions", "profession_name", data['js_profession']))['id']
+                                    username=f'@{message.from_user.username}', age=data['js_age'],
+                                    phone=data['js_phone'])
             technology_ids = [
                 (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
                 for tech in data['js_technologies'].split(",")
             ]
-
-            await db.add_technologies(user_id=user_id, technology_ids=technology_ids)
-            job_id = (await db.add_srch_job(user_id, profession_id, data['js_apply_time'], data['js_cost'],
-                                            data['js_maqsad']))['id']
+            await db.add_technologies(user_id=user_id, technology_ids=technology_ids, table_name="job")
+            region_id = (await db.add_entry(table="regions", field="region_name", value=data['js_region']))['id']
+            profession_id = (
+                await db.add_entry(table="professions", field="profession_name", value=data['js_profession']))['id']
+            job_id = (
+                await db.add_srch_job(user_id=user_id, profession_id=profession_id, apply_time=data['js_apply_time'],
+                                      cost=data['js_cost'], maqsad=data['js_maqsad'], region_id=region_id))['id']
 
             await message.answer(
-                f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {telegram_id}{job_id}"
+                f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{job_id}"
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
                 reply_markup=main_dkb())
 
             await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
                                                 f"{await format_user_data(data, message.from_user.username)}",
-                                   reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
+                                   reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=job_id,
                                                                 department="Ish joyi kerak"))
             await state.clear()
         except Exception as err:

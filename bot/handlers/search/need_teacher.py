@@ -1,25 +1,3 @@
-from aiogram import Router, types, F
-
-router = Router()
-
-text = ["👤 Ism sharifingizni kiriting:\n\n<b>Namuna: Birnarsa Birnarsayev</b>",
-        "🕑 Yoshingizni kiriting:\n\n<b>Namuna: 20</b>",
-        "<b>🧑‍💻 Texnologiya</b>\n\nKerakli texnologiyalarni kiriting (vergul bilan ajrating).\n\n"
-        "<b>Namuna: Java, Python, C++</b>",
-        "📞 <b>Aloqa</b>:\n\nTelefon raqamingizni kiriting\n\n<b>Namuna: +998971234567</b>",
-        "🌎 Hududingizni kiriting (viloyat/shahar yoki davlat/shahar nomi)\n\n<b>Namuna: Farg'ona, Qo'qon yoki "
-        "Turkiya, Istanbul</b>",
-        "💰 <b>Narxi:</b>\n\nTo'lov qilsangiz narxni yozing, amaliyot/tajriba uchun bo'lsa bittasini yozing:"
-        "👨🏻‍💻 <b>Kasbi:</b>\n\nIshlaysizmi yoki o'qiysizmi? (o'qisangiz o'quvchi/talaba, ishlasangiz lavozim/darajangizni kiriting)",
-        "🕰 <b>Murojaat qilish vaqti:</b>\n\nMurojaat qilish vaqtini kiriting:\n\n<b>Namuna: 09:00 - 21:00</b>",
-        "📌 <b>Maqsad:</b>\n\nMaqsadingizni yozing"]
-
-
-@router.message(F.text == "Ustoz kerak")
-async def need_teacher_main(message: types.Message):
-    pass
-
-
 import traceback
 
 from aiogram import Router, types, F

@@ -83,7 +83,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
             (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
             for tech in data['response_1'].split(",")
         ]
-        await db.add_technologies(user_id=user_id, technology_ids=technology_ids)
+        await db.add_technologies(user_id=user_id, technology_ids=technology_ids, table_name="n_worker")
         region_id = (await db.add_entry(table="regions", field="region_name", value=data['response_3']))['id']
         idora_id = (
             await db.add_idoralar(idora_nomi=data['response_0'], masul=data['response_4'], qoshimcha=data['response_8'],

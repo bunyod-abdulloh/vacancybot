@@ -1,4 +1,3 @@
-
 from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 
@@ -109,24 +108,24 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
         data = await partner_data_text(message, state, save_to_db=True)
 
         # Adding data to the database
-        region = await db.add_entry("regions", "region_name", data['pr_region'])
-        profession = await db.add_entry("professions", "profession_name", data['pr_profession'])
-        user = await db.add_user(telegram_id=message.from_user.id, age=None, region_id=region['id'])
-        await db.add_user_datas(user_id=user['id'], full_name=data['pr_fullname'],
-                                username=f'@{message.from_user.username}', phone=data['pr_phone'])
+        user_id = (await db.add_user(telegram_id=message.from_user.id))['id']
+        await db.add_user_datas(user_id=user_id, full_name=data['pr_fullname'],
+                                username=f'@{message.from_user.username}', age=None, phone=data['pr_phone'])
 
         technology_ids = []
         for tech in data['pr_technologies'].split(","):
-            tech_entry = await db.add_entry("technologies", "technology_name", tech.strip())
-            technology_ids.append(tech_entry['id'])
+            tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
+            technology_ids.append(tech_id)
 
-        await db.add_technologies(user_id=user['id'], technology_ids=technology_ids)
-        search_id = await db.add_srch_partner(user_id=user['id'], profession_id=profession['id'],
-                                              apply_time=data['pr_apply_time'], cost=data['pr_cost'],
-                                              maqsad=data['pr_maqsad'])
+        await db.add_technologies(user_id=user_id, technology_ids=technology_ids, table_name="partner")
+        region_id = (await db.add_entry("regions", "region_name", data['pr_region']))['id']
+        profession_id = (await db.add_entry("professions", "profession_name", data['pr_profession']))['id']
+        search_id = (
+            await db.add_srch_partner(user_id=user_id, profession_id=profession_id, apply_time=data['pr_apply_time'],
+                                      cost=data['pr_cost'], maqsad=data['pr_maqsad'], region_id=region_id))['id']
 
         confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
-                             f"So'rov raqami: {message.from_user.id}{search_id['id']}\n\n"
+                             f"So'rov raqami: {message.from_user.id}{search_id}\n\n"
                              f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
         await message.answer(text=confirmation_text, reply_markup=main_dkb())
 
@@ -134,7 +133,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
         data_text = await partner_data_text(message, state)
         await bot.send_message(chat_id=ADMIN_GROUP,
                                text=f"Sherik kerak bo'limiga yangi habar qabul qilindi!\n\n{data_text}",
-                               reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=search_id['id'],
+                               reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=search_id,
                                                             department="Sherik kerak"))
         await state.clear()
     else:

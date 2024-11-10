@@ -71,7 +71,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS user_technologies (
                 user_id BIGINT NOT NULL REFERENCES users(id),
                 technology_id INTEGER NOT NULL REFERENCES technologies(id),
-                PRIMARY KEY (user_id, technology_id)
+                table_name VARCHAR(10)
             );
             """,
             """
@@ -135,7 +135,10 @@ class Database:
     async def add_user_datas(self, user_id, full_name, username, age, phone):
         sql = """
         INSERT INTO users_data (user_id, full_name, username, age, phone) 
-        VALUES ($1, $2, $3, $4, $5) ON CONFLICT (user_id) DO NOTHING
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (user_id) DO UPDATE
+        SET age = EXCLUDED.age
+        WHERE users_data.age IS NULL
         """
         return await self.execute(sql, user_id, full_name, username, age, phone, fetchrow=True)
 
@@ -176,16 +179,15 @@ class Database:
             """
         return await self.execute(sql, idora_id, m_vaqti, i_vaqti, maosh, fetchrow=True)
 
-    async def add_technologies(self, user_id, technology_ids):
+    async def add_technologies(self, user_id, technology_ids, table_name):
         for technology_id in technology_ids:
             sql = f"""
-                INSERT INTO user_technologies (user_id, technology_id)
-                VALUES ($1, $2)
-                ON CONFLICT (user_id, technology_id) DO NOTHING
-                RETURNING user_id
-                """
-            await self.execute(sql, user_id, technology_id, fetchrow=True)
+                INSERT INTO user_technologies (user_id, technology_id, table_name)
+                VALUES ($1, $2, $3) RETURNING user_id
+            """
+            await self.execute(sql, user_id, technology_id, table_name, fetchrow=True)
 
+    # ON CONFLICT(user_id, technology_id) DO NOTHING
     async def update_srch_partner(self, user_id, field, value):
         sql = f"UPDATE srch_partner SET {field}=$1 WHERE user_id=$2"
         return await self.execute(sql, value, user_id, fetchrow=True)
