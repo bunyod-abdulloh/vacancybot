@@ -2,6 +2,7 @@ from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from bot.handlers.functions.functions_one import failed_message, warning_message, send_to_admin
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
 from loader import db
@@ -20,6 +21,28 @@ text_prompts = [
     "💰 Maoshni kiriting:\n\n<b>Namuna: 15.000.000 so'm</b>",
     "‼️ Qo'shimcha ma'lumotlar:"
 ]
+
+
+async def format_worker_data(data: dict, message: types.Message, to_user=False, to_admin=False, row_id=None):
+    techs = " ".join(f"#{tech.strip().lower()}" for tech in data['response_1'].split(","))
+    region = data['response_3'].split(",")[0].split(" ")[0]
+    summary = (f"<b>Xodim kerak</b>\n\n"
+               f"🏢 <b>Idora:</b> {data['response_0']}\n"
+               f"📚 <b>Texnologiya:</b> {data['response_1']}\n"
+               f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
+               f"📞 <b>Aloqa:</b> {data['response_2']}\n"
+               f"🌐 <b>Hudud:</b> {data['response_3']}\n"
+               f"✍️ <b>Mas'ul:</b> {data['response_4']}\n"
+               f"🕰 <b>Murojaat qilish vaqti:</b> {data['response_5']}\n"
+               f"🕰 <b>Ish vaqti:</b> {data['response_6']}\n"
+               f"💰 <b>Maosh:</b> {data['response_7']}\n"
+               f"‼️ <b>Qo'shimcha ma'lumotlar:</b> {data['response_8']}\n\n"
+               f"#xodim_kerak {techs} #{region}")
+    if to_user:
+        await message.answer(summary)
+    if to_admin:
+        await send_to_admin(chapter="Xodim kerak", row_id=row_id, telegram_id=message.from_user.id, summary=summary,
+                            department="need_worker")
 
 
 # Define states
@@ -53,51 +76,43 @@ async def collect_worker_info(message: types.Message, state: FSMContext):
         await state.update_data(prompt_index=prompt_index + 1)
     else:
         # Data collection completed
-        user_data = await state.get_data()
+        data = await state.get_data()
+        await format_worker_data(data=data, message=message, to_user=True)
         await message.answer("Ma'lumotlar muvaffaqiyatli qabul qilindi!\n\nTekshirib kerakli tugmani bosing:",
                              reply_markup=check_dkb)
 
-        text = (f"<b>Xodim kerak</b>\n\n"
-                f"🏢 <b>Idora:</b> {user_data['response_0']}\n"
-                f"📚 <b>Texnologiya:</b> {user_data['response_1']}\n"
-                f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
-                f"📞 <b>Aloqa:</b> {user_data['response_2']}\n"
-                f"🌐 <b>Hudud:</b> {user_data['response_3']}\n"
-                f"✍️ <b>Mas'ul:</b> {user_data['response_4']}\n"
-                f"🕰 <b>Murojaat qilish vaqti:</b> {user_data['response_5']}\n"
-                f"🕰 <b>Ish vaqti:</b> {user_data['response_6']}\n"
-                f"💰 <b>Maosh:</b> {user_data['response_7']}\n"
-                f"‼️ <b>Qo'shimcha ma'lumotlar:</b> {user_data['response_8']}")
-        await message.answer(text=text)
         await state.set_state(NeedWorkerStates.check)
 
 
 @router.message(NeedWorkerStates.check)
 async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
-    if message.text == "✅ Tasdiqlash":
-        data = await state.get_data()
-        user_id = (await db.add_user(telegram_id=message.from_user.id))['id']
-        await db.add_user_datas(user_id=user_id, full_name=message.from_user.full_name,
-                                username=f'@{message.from_user.username}', age=None, phone=data['response_2'])
-        technology_ids = [
-            (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
-            for tech in data['response_1'].split(",")
-        ]
-        await db.add_technologies(user_id=user_id, technology_ids=technology_ids, table_name="n_worker")
-        region_id = (await db.add_entry(table="regions", field="region_name", value=data['response_3']))['id']
-        idora_id = (
-            await db.add_idoralar(idora_nomi=data['response_0'], masul=data['response_4'], qoshimcha=data['response_8'],
-                                  region_id=region_id))['id']
-        work_id = (await db.add_srch_worker(idora_id=idora_id, m_vaqti=data['response_5'], i_vaqti=data['response_6'],
-                                            maosh=data['response_7']))['id']
+    if message.text == "♻️ Qayta kiritish":
+        await need_worker_main(message, state)
+    elif message.text == "✅ Tasdiqlash":
+        try:
+            data = await state.get_data()
+            user_id = (await db.add_user(telegram_id=message.from_user.id))['id']
+            await db.add_user_datas(user_id=user_id, full_name=message.from_user.full_name,
+                                    username=f'@{message.from_user.username}', age=None, phone=data['response_2'])
+            region_id = (await db.add_entry(table="regions", field="region_name", value=data['response_3']))['id']
+            idora_id = (
+                await db.add_idoralar(idora_nomi=data['response_0'], masul=data['response_4'],
+                                      qoshimcha=data['response_8'],
+                                      region_id=region_id, user_id=user_id))['id'],
+            for tech in data['response_1'].split(","):
+                tech_id = (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
+                await db.add_technologies(user_id=idora_id, technology_id=tech_id, table_name="n_worker")
 
-        await message.answer(
-            f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{work_id}"
-            f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
-            reply_markup=main_dkb())
-
-        # await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
-        #                                     f"{await format_user_data(data, message.from_user.username)}",
-        #                        reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
-        #                                                     department="Ish joyi kerak"))
-        await state.clear()
+            work_id = \
+                (await db.add_srch_worker(idora_id=idora_id, m_vaqti=data['response_5'], i_vaqti=data['response_6'],
+                                          maosh=data['response_7']))['id']
+            await message.answer(
+                f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{work_id}"
+                f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
+                reply_markup=main_dkb())
+            await format_worker_data(data=data, message=message, to_admin=True, row_id=work_id)
+            await state.clear()
+        except Exception as err:
+            await failed_message(message, err)
+    else:
+        await warning_message(message)

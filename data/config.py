@@ -5,6 +5,7 @@ env.read_env()
 
 # TEST_GROUP = env.str("TEST_GROUP")
 BOT_TOKEN = env.str("BOT_TOKEN")
+# ADMINS = set(map(int, env.list("ADMINS")))
 ADMINS = env.list("ADMINS")
 ADMIN_GROUP = env.str("ADMIN_GROUP")
 CHANNEL = env.str("CHANNEL")

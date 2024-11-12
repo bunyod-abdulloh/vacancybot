@@ -8,6 +8,9 @@ from loader import bot, db
 
 router = Router()
 
+chapters = {"need_partner": "Sherik kerak", "need_job": "Ish joyi kerak", "need_worker": "Xodim kerak",
+            "need_teacher": "Ustoz kerak", "need_apprentice": "Shogird kerak", "idoralar": "idoralar"}
+
 
 # Utility function to split callback data
 def split_data(data):
@@ -26,79 +29,125 @@ async def send_and_alert(user_id, text, call):
 
 
 # Fetch user and related information based on type
-async def get_user_info(user_id, data_type=None):
+async def get_send_user_info(user_id, data_type):
     user = await db.get_entry(table="users", field="telegram_id", value=user_id)
     user_data = await db.get_entry(table="users_data", field="user_id", value=user['id'])
-    extra_data = None
-    if data_type == "partner":
-        extra_data = await db.get_srch_partner(user_id=user['id'])
-    elif data_type == "job":
-        extra_data = await db.get_entry(table="srch_job", field="user_id", value=user['id'])
 
-    profession = await db.get_entry(table="professions", field="id", value=extra_data['profession_id'])
-    region = await db.get_entry(table="regions", field="id", value=user['region_id'])
-    return user, user_data, extra_data, profession, region
-
-
-# Extract user technologies and format tags
-async def get_technologies(user_id):
-    technologies = await db.get_technologies(user_id=user_id)
+    get_technologies = await db.get_entries(table="user_technologies", field="user_id", value=user['id'])
     tech_list = []
+    techs_top = str()
+    techs_bottom = str()
+    summary = str()
 
-    for tech in technologies:
-        technology = await db.get_entry(table="technologies", field="id", value=tech['technology_id'])
-        tech_list.append(technology['technology_name'])
+    if len(get_technologies) == 1:
+        techs_top += (await db.get_entry(table="technologies", field="id", value=get_technologies[0]['id']))[
+            'technology_name']
+        techs_bottom += f"#{(await db.get_entry(table='technologies', field='id', value=get_technologies[0]['id']))['technology_name']}"
+    else:
+        for tech in get_technologies:
+            technology = await db.get_entry(table="technologies", field="id", value=tech['id'])
+            tech_list.append(technology['technology_name'])
+            techs_top += f", {technology['technology_name']}"
+            techs_bottom += f"#{technology['technology_name']} "
 
-    return ", ".join(tech_list), " ".join(f"#{tech.lower()}" for tech in tech_list)
+    get_datas = await db.get_entry(table=data_type, field="user_id", value=user['id'])
+    get_region = await db.get_entry(table="regions", field="id", value=get_datas['region_id'])
+    region = get_region['region_name'].split(",")[0].split(" ")[0]
+
+    get_profession = await db.get_entry(table="professions", field="id", value=get_datas['profession_id'])
+
+    if data_type == "need_partner":
+        summary += (f"<b>Sherik kerak</b>\n\n"
+                    f"👤 <b>Sherik:</b> {user_data['full_name']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {techs_top}\n"
+                    f"🔗 <b>Telegram:</b> {user_data['username']}\n"
+                    f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {get_region['region_name']}\n"
+                    f"💰 <b>Narx:</b> {get_datas['cost']}\n"
+                    f"💻 <b>Kasbi:</b> {get_profession['profession_name']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_datas['apply_time']}\n"
+                    f"📌 <b>Maqsad:</b> {get_datas['maqsad']}\n\n"
+                    f"#sherik {techs_bottom} #{region}")
+
+    if data_type == "need_job":
+        summary += (f"<b>Ish joyi kerak</b>\n\n"
+                    f"👤 <b>Xodim:</b> {user_data['full_name']}\n"
+                    f"🕑 <b>Yosh:</b> {user_data['age']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {techs_top}\n"
+                    f"🔗 <b>Telegram:</b> {user_data['username']}\n"
+                    f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {get_region['region_name']}\n"
+                    f"💰 <b>Narx:</b> {get_datas['cost']}\n"
+                    f"💻 <b>Kasbi:</b> {get_profession['profession_name']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_datas['apply_time']}\n"
+                    f"📌 <b>Maqsad:</b> {get_datas['maqsad']}\n\n"
+                    f"#xodim {techs_bottom} #{region}")
+    if data_type == "need_worker":
+        get_idora = await db.get_entry(table="idoralar", field="user_id", value=user['id'])
+        get_worker = await db.get_entry(table=data_type, field="idora_id", value=get_idora['id'])
+        summary += (f"<b>Xodim kerak</b>\n\n"
+                    f"🏢 <b>Idora:</b> {get_idora['idora_nomi']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {techs_top}\n"
+                    f"🔗 <b>Telegram:</b> {user_data['username']}\n"
+                    f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {get_region['region_name']}\n"
+                    f"✍️ <b>Mas'ul:</b> {get_idora['masul']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_worker['m_vaqti']}\n"
+                    f"🕰 <b>Ish vaqti:</b> {get_worker['i_vaqti']}\n"
+                    f"💰 <b>Maosh:</b> {get_worker['maosh']}\n"
+                    f"‼️ <b>Qo'shimcha ma'lumotlar:</b> {get_idora['qoshimcha']}\n\n"
+                    f"#xodim_kerak {techs_bottom} #{region}")
+    if data_type == "need_teacher":
+        summary += (f"<b>Ustoz kerak</b>\n\n"
+                    f"👤 <b>Shogird:</b> {user_data['full_name']}\n"
+                    f"🕑 <b>Yosh:</b> {user_data['age']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {techs_top}\n"
+                    f"🔗 <b>Telegram:</b> {user_data['username']}\n"
+                    f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {get_region['region_name']}\n"
+                    f"💰 <b>Narx:</b> {get_datas['cost']}\n"
+                    f"💻 <b>Kasbi:</b> {get_profession['profession_name']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_datas['apply_time']}\n"
+                    f"📌 <b>Maqsad:</b> {get_datas['maqsad']}\n\n"
+                    f"#ustoz_kerak {techs_bottom} #{region}")
+    if data_type == "need_apprentice":
+        summary += (f"<b>Shogird kerak</b>\n\n"
+                    f"👤 <b>Ustoz:</b> {user_data['full_name']}\n"
+                    f"🕑 <b>Yosh:</b> {user_data['age']}\n"
+                    f"🧑‍💻 <b>Texnologiya:</b> {techs_top}\n"
+                    f"🔗 <b>Telegram:</b> {user_data['username']}\n"
+                    f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
+                    f"🌎 <b>Hudud:</b> {get_region['region_name']}\n"
+                    f"💰 <b>Narx:</b> {get_datas['cost']}\n"
+                    f"💻 <b>Kasbi:</b> {get_profession['profession_name']}\n"
+                    f"⌚️ <b>Murojaat qilish vaqti:</b> {get_datas['apply_time']}\n"
+                    f"📌 <b>Maqsad:</b> {get_datas['maqsad']}\n\n"
+                    f"#shogird {techs_bottom} #{region}")
+    await bot.send_message(chat_id=CHANNEL, text=summary)
 
 
 # Delete all user-related data
-async def delete_user_data(user_id, call):
+async def delete_user_data(user_id, call, department):
     try:
         user = await db.get_entry(table="users", field="telegram_id", value=user_id)
         if not user:
             return
 
-        await db.delete_from_table("partner_technologies", "user_id", user_id)
-        await db.delete_from_table("srch_partner", "user_id", user_id)
+        await db.delete_from_table(table=department, field="user_id", value=user['id'])
         await db.delete_user(telegram_id=user_id)
     except Exception as err:
         await call.message.edit_text(f"Error: {err}")
-
-
-# Helper to generate post text based on user and data type
-def format_post_text(department, user_data, extra_data, profession, region, technologies, technologies_bottom):
-    region_name = region['region_name']  # region nomini olish
-
-    return (
-        f"<b>{department.capitalize()}</b>\n\n"
-        f"👤 <b>{'Sherik' if department == 'Sherik kerak' else 'Xodim'}:</b> {user_data['full_name']}\n"
-        f"🧑‍💻 <b>Texnologiya:</b> {technologies}\n"
-        f"🔗 <b>Telegram:</b> {user_data['username']}\n"
-        f"📞 <b>Aloqa:</b> {user_data['phone']}\n"
-        f"🌎 <b>Hudud:</b> {region_name}\n"
-        f"💰 <b>Narx:</b> {extra_data['cost']}\n"
-        f"💻 <b>Kasbi:</b> {profession['profession_name']}\n"
-        f"⌚️ <b>Murojaat qilish vaqti:</b> {extra_data['apply_time']}\n"
-        f"📌 <b>Maqsad:</b> {extra_data['maqsad']}\n\n"
-        f"#{department.lower().replace(' ', '_')} {technologies_bottom} #{region_name.split(',')[0].split(' ')[0]}"
-    )
 
 
 # Handle admin approval of partner or job request
 @router.callback_query(F.data.startswith('admincheck_yes:'))
 async def admincheck_approve(call: types.CallbackQuery):
     user_telegram, row_id, department = split_data(call.data)
-    text = f"Sizning {department} bo'limi uchun yuborgan {user_telegram}{row_id} raqamli so'rovingiz qabul qilindi!"
 
-    data_type = "partner" if department == "Sherik kerak" else "job" if department == "Ish joyi kerak" else None
-
-    user, user_data, extra_data, profession, region = await get_user_info(user_telegram, data_type=data_type)
-    technologies, technologies_bottom = await get_technologies(user['id'])
-
-    post = format_post_text(department, user_data, extra_data, profession, region, technologies, technologies_bottom)
-    await bot.send_message(chat_id=CHANNEL, text=post)
-    await send_and_alert(user_telegram, text, call)
+    if department in chapters.keys():
+        text = f"Sizning {chapters[department]} bo'limi uchun yuborgan {user_telegram}{row_id} raqamli so'rovingiz qabul qilindi!"
+        await get_send_user_info(user_id=user_telegram, data_type=department)
+        await send_and_alert(user_telegram, text, call)
 
 
 # Ask for reason when rejecting request
@@ -106,18 +155,18 @@ async def admincheck_approve(call: types.CallbackQuery):
 async def admincheck_reject_reason(call: types.CallbackQuery, state: FSMContext):
     user_id, row_id, department = split_data(call.data)
     await call.message.edit_text("Rad etilish sababini kiriting")
-    await state.update_data(pr_user_id=user_id, pr_row_id=row_id, department=department)
+    await state.update_data(ck_telegram=user_id, ck_row=row_id, ck_department=department)
     await state.set_state(AdminCheck.partner_no)
 
 
 # Confirm reason for rejection
 @router.message(AdminCheck.partner_no)
 async def admincheck_confirm_reject(message: types.Message, state: FSMContext):
-    await state.update_data(pr_no_text=message.text)
+    await state.update_data(ck_text=message.text)
     data = await state.get_data()
 
     await message.answer("Kiritgan habaringizni tasdiqlaysizmi?", reply_markup=second_check_ikb(
-        data['pr_user_id'], data['pr_row_id'], data['department']))
+        data['ck_telegram'], data['ck_row'], data['ck_department']))
     await state.set_state(AdminCheck.partner_no_)
 
 
@@ -126,9 +175,8 @@ async def admincheck_confirm_reject(message: types.Message, state: FSMContext):
 async def admincheck_finalize_reject(call: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     rejection_message = (
-        f"Sizning <b>{data['department']}</b> bo'limi uchun yuborgan {data['pr_user_id']}{data['pr_row_id']} raqamli "
-        f"so'rovingiz rad etildi!\n\nSabab: {data['pr_no_text']}")
-
-    await send_and_alert(data['pr_user_id'], rejection_message, call)
-    await delete_user_data(data['pr_user_id'], call)
+        f"Sizning <b>{chapters[data['ck_department']]}</b> bo'limi uchun yuborgan {data['ck_telegram']}{data['ck_row']} raqamli "
+        f"so'rovingiz rad etildi!\n\nSabab: {data['ck_text']}")
+    await send_and_alert(data['ck_telegram'], rejection_message, call)
+    await delete_user_data(user_id=data['ck_telegram'], call=call, department=data['ck_department'])
     await state.clear()

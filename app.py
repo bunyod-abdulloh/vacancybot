@@ -25,10 +25,8 @@ def setup_middlewares(dispatcher: Dispatcher) -> None:
 
 def setup_filters(dispatcher: Dispatcher) -> None:
     """FILTERS"""
-    from bot.filters import ChatPrivateFilter, ChatGroupCallbackFilter
 
-    dispatcher.message.filter(ChatPrivateFilter(chat_type=["private", "supergroup"]))
-    dispatcher.callback_query.filter(ChatGroupCallbackFilter(chat_type=["supergroup"]))
+    # dispatcher.message.filter(ChatPrivateFilter(chat_type=["private"]))
 
 
 async def setup_aiogram(dispatcher: Dispatcher) -> None:

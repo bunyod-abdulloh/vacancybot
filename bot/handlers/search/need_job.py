@@ -1,14 +1,11 @@
-import traceback
-
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from bot.keyboards.inline.admin_ikb import first_check_ikb
+from bot.handlers.functions.functions_one import failed_message, warning_message, send_to_admin
 from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
-from data.config import ADMIN_GROUP
-from loader import db, bot
+from loader import db
 
 router = Router()
 
@@ -39,14 +36,14 @@ questions = [
 
 
 # Optimized data formatting function
-async def format_user_data(data: dict, username: str):
+async def format_user_data(data: dict, message: types.Message, to_user=False, to_admin=False, row_id=None):
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['js_technologies'].split(","))
     region = data['js_region'].split(",")[0].split(" ")[0]
-    return (
+    summary = (
         f"👨‍💼 <b>Xodim:</b> {data['js_fullname']}\n"
         f"🕑 <b>Yosh:</b> {data['js_age']}\n"
         f"🧑‍💻 <b>Texnologiya:</b> {data['js_technologies']}\n"
-        f"🔗 <b>Telegram:</b> @{username}\n"
+        f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
         f"📞 <b>Aloqa</b> {data['js_phone']}\n"
         f"🌎 <b>Hudud:</b> {data['js_region']}\n"
         f"💰 <b>Narx:</b> {data['js_cost']}\n"
@@ -55,6 +52,11 @@ async def format_user_data(data: dict, username: str):
         f"📌 <b>Maqsad:</b> {data['js_maqsad']}\n\n"
         f"#xodim {techs} #{region}"
     )
+    if to_user:
+        await message.answer(text=summary)
+    if to_admin:
+        await send_to_admin(chapter="Ish joyi kerak", row_id=row_id, telegram_id=message.from_user.id, summary=summary,
+                            department="need_job")
 
 
 # Start handler
@@ -87,8 +89,8 @@ async def collect_info(message: types.Message, state: FSMContext):
     else:
         # Data collection completed
         data_ = await state.get_data()
-        user_data = await format_user_data(data=data_, username=message.from_user.username)
-        await message.answer(f"Kiritilgan ma'lumotlarni tekshiring\n\n{user_data}", reply_markup=check_dkb)
+        await format_user_data(data=data_, message=message, to_user=True)
+        await message.answer(f"Kiritilgan ma'lumotlarni tekshirib, kerakli tugmani bosing", reply_markup=check_dkb)
         await state.set_state(JobSearch.check)
 
 
@@ -104,36 +106,22 @@ async def js_check(message: types.Message, state: FSMContext):
             await db.add_user_datas(user_id=user_id, full_name=data['js_fullname'],
                                     username=f'@{message.from_user.username}', age=data['js_age'],
                                     phone=data['js_phone'])
-            technology_ids = [
-                (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
-                for tech in data['js_technologies'].split(",")
-            ]
-            await db.add_technologies(user_id=user_id, technology_ids=technology_ids, table_name="job")
             region_id = (await db.add_entry(table="regions", field="region_name", value=data['js_region']))['id']
             profession_id = (
                 await db.add_entry(table="professions", field="profession_name", value=data['js_profession']))['id']
             job_id = (
                 await db.add_srch_job(user_id=user_id, profession_id=profession_id, apply_time=data['js_apply_time'],
                                       cost=data['js_cost'], maqsad=data['js_maqsad'], region_id=region_id))['id']
-
+            for tech in data['js_technologies'].split(","):
+                tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
+                await db.add_technologies(user_id=job_id, technology_id=tech_id, table_name="job")
             await message.answer(
                 f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{job_id}"
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
                 reply_markup=main_dkb())
-
-            await bot.send_message(ADMIN_GROUP, f"Ish joyi kerak bo'limiga yangi habar qabul qilindi!\n\n"
-                                                f"{await format_user_data(data, message.from_user.username)}",
-                                   reply_markup=first_check_ikb(telegram_id=message.from_user.id, row_id=job_id,
-                                                                department="Ish joyi kerak"))
+            await format_user_data(data=data, message=message, to_admin=True, row_id=job_id)
             await state.clear()
         except Exception as err:
-            tb = traceback.format_tb(err.__traceback__)
-            trace = tb[0]
-            bot_properties = await bot.me()
-            bot_message = f"Bot: {bot_properties.full_name}"
-
-            await message.answer(text=f"{bot_message}\n\nXatolik:\n{trace}\n\n{err}")
-
+            await failed_message(message, err)
     else:
-        await message.answer(
-            text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")
+        await warning_message(message)

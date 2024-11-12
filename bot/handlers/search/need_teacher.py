@@ -1,11 +1,11 @@
-import traceback
-
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+from bot.handlers.functions.functions_one import failed_message, warning_message, send_to_admin
+from bot.keyboards.reply.main_dkb import main_dkb
 from bot.keyboards.reply.users_dkb import check_dkb
-from loader import bot
+from loader import db
 
 router = Router()
 
@@ -38,14 +38,15 @@ mentor_questions = [
 
 
 # Optimized data formatting function
-async def format_mentor_data(data: dict, username: str):
+async def format_mentor_data(data: dict, message: types.Message, to_user=False, to_admin=False, row_id=None):
     techs = " ".join(f"#{tech.strip().lower()}" for tech in data['mr_technologies'].split(","))
     region = data['mr_region'].split(",")[0].split(" ")[0]
-    return (
+    summary = (
+        f"<b>Ustoz kerak</b>\n\n"
         f"👨‍💼 <b>Shogird:</b> {data['mr_fullname']}\n"
         f"🕑 <b>Yosh:</b> {data['mr_age']}\n"
         f"🧑‍💻 <b>Texnologiyalar:</b> {data['mr_technologies']}\n"
-        f"🔗 <b>Telegram:</b> @{username}\n"
+        f"🔗 <b>Telegram:</b> @{message.from_user.username}\n"
         f"📞 <b>Aloqa:</b> {data['mr_phone']}\n"
         f"🌎 <b>Hudud:</b> {data['mr_region']}\n"
         f"💰 <b>Narxi:</b> {data['mr_cost']}\n"
@@ -54,6 +55,11 @@ async def format_mentor_data(data: dict, username: str):
         f"📌 <b>Maqsad:</b> {data['mr_goal']}\n\n"
         f"#ustoz_kerak {techs} #{region}"
     )
+    if to_user:
+        await message.answer(summary)
+    if to_admin:
+        await send_to_admin(chapter="Ustoz kerak", row_id=row_id, telegram_id=message.from_user.id, summary=summary,
+                            department="need_teacher")
 
 
 # Start handler for mentor request
@@ -86,8 +92,8 @@ async def collect_mentor_info(message: types.Message, state: FSMContext):
     else:
         # Data collection completed
         data_ = await state.get_data()
-        user_data = await format_mentor_data(data=data_, username=message.from_user.username)
-        await message.answer(f"Kiritilgan ma'lumotlarni tekshiring\n\n{user_data}", reply_markup=check_dkb)
+        await format_mentor_data(data=data_, message=message, to_user=True)
+        await message.answer(f"Kiritilgan ma'lumotlarni tekshirib, kerakli tugmani bosing", reply_markup=check_dkb)
         await state.set_state(MentorRequest.check)
 
 
@@ -99,40 +105,26 @@ async def mentor_request_check(message: types.Message, state: FSMContext):
     elif message.text == "✅ Tasdiqlash":
         try:
             data = await state.get_data()
-            telegram_id = message.from_user.id
-            print(data)
-            # region_id = (await db.add_entry("regions", "region_name", data['mr_region']))['id']
-            # user_id = (await db.add_user(telegram_id, data['mr_age'], region_id=region_id))['id']
-            # await db.add_user_datas(user_id=user_id, full_name=data['mr_fullname'],
-            #                         username=f'@{message.from_user.username}', phone=data['mr_phone'])
-            # profession_id = (await db.add_entry("professions", "profession_name", data['mr_profession']))['id']
-            # technology_ids = [
-            #     (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
-            #     for tech in data['mr_technologies'].split(",")
-            # ]
-            #
-            # await db.add_technologies(user_id=user_id, technology_ids=technology_ids)
-            # job_id = (await db.add_srch_job(user_id, profession_id, data['mr_apply_time'], data['mr_cost'],
-            #                                 data['mr_goal']))['id']
-            #
-            # await message.answer(
-            #     f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {telegram_id}{job_id}"
-            #     f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
-            #     reply_markup=main_dkb())
-            #
-            # await bot.send_message(ADMIN_GROUP, f"Ustoz kerak bo'limiga yangi murojaat kelib tushdi!\n\n"
-            #                                     f"{await format_mentor_data(data, message.from_user.username)}",
-            #                        reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=job_id,
-            #                                                     department="Ustoz kerak"))
-            # await state.clear()
+            user_id = (await db.add_user(telegram_id=message.from_user.id))['id']
+            await db.add_user_datas(user_id=user_id, full_name=data['mr_fullname'],
+                                    username=f'@{message.from_user.username}', age=data['mr_age'],
+                                    phone=data['mr_phone'])
+            region_id = (await db.add_entry("regions", "region_name", data['mr_region']))['id']
+            profession_id = (await db.add_entry("professions", "profession_name", data['mr_profession']))['id']
+            id_ = (await db.add_need_teacher(user_id=user_id, profession_id=profession_id,
+                                             apply_time=data['mr_apply_time'], cost=data['mr_cost'],
+                                             maqsad=data['mr_goal'], region_id=region_id))['id']
+            for tech in data['mr_technologies'].split(","):
+                tech_id = (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
+                await db.add_technologies(user_id=id_, technology_id=tech_id, table_name="n_teacher")
+            await format_mentor_data(data=data, message=message, to_admin=True, row_id=id_)
+
+            await message.answer(
+                f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{id_}"
+                f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
+                reply_markup=main_dkb())
+            await state.clear()
         except Exception as err:
-            tb = traceback.format_tb(err.__traceback__)
-            trace = tb[0]
-            bot_properties = await bot.me()
-            bot_message = f"Bot: {bot_properties.full_name}"
-
-            await message.answer(text=f"{bot_message}\n\nXatolik:\n{trace}\n\n{err}")
-
+            await failed_message(message, err)
     else:
-        await message.answer(
-            text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")
+        await warning_message(message)

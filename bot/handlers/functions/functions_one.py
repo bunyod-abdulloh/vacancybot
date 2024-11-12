@@ -1,5 +1,8 @@
+import traceback
+
 from aiogram.enums import ChatMemberStatus
 
+from bot.keyboards.inline.admin_ikb import first_check_ikb
 from data.config import ADMINS
 from loader import bot
 
@@ -19,5 +22,22 @@ def extracter(all_medias, delimiter):
     return empty_list
 
 
-async def failed_message(message):
-    await message.answer(text="Bo'lim hozircha ishga tushirilmadi!")
+async def failed_message(message, err):
+    tb = traceback.format_tb(err.__traceback__)
+    trace = tb[0]
+    bot_properties = await bot.me()
+    bot_message = f"Bot: {bot_properties.full_name}"
+
+    await message.answer(text=f"{bot_message}\n\nXatolik:\n{trace}\n\n{err}")
+
+
+async def warning_message(message):
+    await message.answer(
+        text="Faqat <b>✅ Tasdiqlash</b> yoki <b>♻️ Qayta kiritish</b> buyruqlari kiritilishi lozim!")
+
+
+async def send_to_admin(chapter, row_id, telegram_id, summary, department):
+    await bot.send_message(
+        chat_id=ADMINS[0], text=f"{chapter} bo'limiga yangi habar qabul qilindi!\n\n{summary}",
+        reply_markup=first_check_ikb(telegram_id=telegram_id, row_id=row_id, department=department)
+    )
