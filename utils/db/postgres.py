@@ -68,10 +68,10 @@ class Database:
             );
             """,
             """
-            CREATE TABLE IF NOT EXISTS user_technologies (
+            CREATE TABLE IF NOT EXISTS user_techs (
                 user_id INTEGER,
                 id INTEGER NOT NULL REFERENCES technologies(id),
-                table_name VARCHAR(10)
+                table_name VARCHAR(20)
             );
             """,
             """
@@ -88,34 +88,34 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS need_job (
                 id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id),
-                profession_id INTEGER REFERENCES professions(id),
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                profession_id INTEGER REFERENCES professions(id) ON DELETE CASCADE,
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
                 maqsad VARCHAR(2000),
-                region_id INTEGER REFERENCES regions(id)
+                region_id INTEGER REFERENCES regions(id) ON DELETE CASCADE
             );
             """,
             """
             CREATE TABLE IF NOT EXISTS need_teacher (
                 id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id),
-                profession_id INTEGER REFERENCES professions(id),
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                profession_id INTEGER REFERENCES professions(id) ON DELETE CASCADE,
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
                 maqsad VARCHAR(2000),
-                region_id INTEGER REFERENCES regions(id)
+                region_id INTEGER REFERENCES regions(id) ON DELETE CASCADE
             );
             """,
             """
             CREATE TABLE IF NOT EXISTS need_apprentice (
                 id SERIAL PRIMARY KEY,
-                user_id BIGINT NOT NULL REFERENCES users(id),
-                profession_id INTEGER REFERENCES professions(id),
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                profession_id INTEGER REFERENCES professions(id) ON DELETE CASCADE,
                 apply_time VARCHAR(60),
                 cost VARCHAR(60),
                 maqsad VARCHAR(2000),
-                region_id INTEGER REFERENCES regions(id)
+                region_id INTEGER REFERENCES regions(id) ON DELETE CASCADE
             );
             """,
             """
@@ -124,17 +124,17 @@ class Database:
                 user_id INTEGER,
                 idora_nomi VARCHAR(255),
                 masul VARCHAR(255),
-                qoshimcha VARCHAR(2000)                
+                qoshimcha VARCHAR(2000),
+                region_id INTEGER REFERENCES regions(id) ON DELETE CASCADE              
             );
             """,
             """
             CREATE TABLE IF NOT EXISTS need_worker (
                 id SERIAL PRIMARY KEY,
-                idora_id INTEGER NOT NULL REFERENCES idoralar(id),
+                idora_id INTEGER NOT NULL REFERENCES idoralar(id) ON DELETE CASCADE,
                 m_vaqti VARCHAR(60),
                 i_vaqti VARCHAR(60),
-                maosh VARCHAR(60),
-                region_id INTEGER REFERENCES regions(id)
+                maosh VARCHAR(60)                
             );
             """
         ]
@@ -204,7 +204,7 @@ class Database:
     async def add_idoralar(self, idora_nomi, masul, qoshimcha, region_id, user_id):
         sql = """
             INSERT INTO idoralar (idora_nomi, masul, qoshimcha, region_id, user_id)
-            VALUES ($1, $2, $3, $4) RETURNING id
+            VALUES ($1, $2, $3, $4, $5) RETURNING id
         """
         return await self.execute(sql, idora_nomi, masul, qoshimcha, region_id, user_id, fetchrow=True)
 
@@ -217,7 +217,7 @@ class Database:
 
     async def add_technologies(self, user_id, technology_id, table_name):
         sql = f"""
-                INSERT INTO user_technologies (user_id, id, table_name)
+                INSERT INTO user_techs (user_id, id, table_name)
                 VALUES ($1, $2, $3) RETURNING user_id
             """
         await self.execute(sql, user_id, technology_id, table_name, fetchrow=True)
@@ -249,8 +249,8 @@ class Database:
         await self.execute(sql, value, execute=True)
 
     async def drop_tables(self):
-        tables = ['users', 'users_data', 'regions', 'professions', 'technologies', 'user_technologies', 'need_partner',
-                  'need_job', 'idoralar', 'need_worker']
+        tables = ['user_techs', 'need_partner', 'need_job', 'idoralar', 'need_worker', 'users', 'users_data', 'regions',
+                  'professions', 'technologies']
 
         for table in tables:
             sql = f"DROP TABLE {table} CASCADE"

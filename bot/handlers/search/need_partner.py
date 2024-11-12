@@ -120,7 +120,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
 
             for tech in data['pr_technologies'].split(","):
                 tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
-                await db.add_technologies(user_id=search_id, technology_id=tech_id, table_name="partner")
+                await db.add_technologies(user_id=search_id, technology_id=tech_id, table_name="need_partner")
             confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
                                  f"So'rov raqami: {message.from_user.id}{search_id}\n\n"
                                  f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
