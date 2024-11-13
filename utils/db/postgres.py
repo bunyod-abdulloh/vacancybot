@@ -58,7 +58,7 @@ class Database:
             """
             CREATE TABLE IF NOT EXISTS professions (
                 id SERIAL PRIMARY KEY,
-                profession_name VARCHAR(255) NOT NULL UNIQUE
+                profession VARCHAR(255) NOT NULL UNIQUE
             );
             """,
             """
@@ -221,6 +221,10 @@ class Database:
                 VALUES ($1, $2, $3) RETURNING user_id
             """
         await self.execute(sql, user_id, technology_id, table_name, fetchrow=True)
+
+    async def get_techs(self, user_id, table_name):
+        sql = f"SELECT * FROM user_techs WHERE user_id=$1 AND table_name=$2"
+        return await self.execute(sql, user_id, table_name, fetch=True)
 
     # ======================= GENERIC CRUD =======================
     async def add_entry(self, table, field, value):

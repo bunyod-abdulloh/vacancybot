@@ -106,11 +106,11 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
             work_id = \
                 (await db.add_srch_worker(idora_id=idora_id, m_vaqti=data['response_5'], i_vaqti=data['response_6'],
                                           maosh=data['response_7']))['id']
+            await format_worker_data(data=data, message=message, to_admin=True, row_id=work_id)
             await message.answer(
                 f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{work_id}"
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
                 reply_markup=main_dkb())
-            await format_worker_data(data=data, message=message, to_admin=True, row_id=work_id)
             await state.clear()
         except Exception as err:
             await failed_message(message, err)

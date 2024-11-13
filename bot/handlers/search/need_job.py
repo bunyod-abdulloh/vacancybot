@@ -108,18 +108,18 @@ async def js_check(message: types.Message, state: FSMContext):
                                     phone=data['js_phone'])
             region_id = (await db.add_entry(table="regions", field="region_name", value=data['js_region']))['id']
             profession_id = (
-                await db.add_entry(table="professions", field="profession_name", value=data['js_profession']))['id']
+                await db.add_entry(table="professions", field="profession", value=data['js_profession']))['id']
             job_id = (
                 await db.add_srch_job(user_id=user_id, profession_id=profession_id, apply_time=data['js_apply_time'],
                                       cost=data['js_cost'], maqsad=data['js_maqsad'], region_id=region_id))['id']
             for tech in data['js_technologies'].split(","):
                 tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
-                await db.add_technologies(user_id=job_id, technology_id=tech_id, table_name="job")
+                await db.add_technologies(user_id=job_id, technology_id=tech_id, table_name="need_job")
+            await format_user_data(data=data, message=message, to_admin=True, row_id=job_id)
             await message.answer(
                 f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{job_id}"
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",
                 reply_markup=main_dkb())
-            await format_user_data(data=data, message=message, to_admin=True, row_id=job_id)
             await state.clear()
         except Exception as err:
             await failed_message(message, err)

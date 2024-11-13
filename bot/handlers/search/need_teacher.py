@@ -110,15 +110,14 @@ async def mentor_request_check(message: types.Message, state: FSMContext):
                                     username=f'@{message.from_user.username}', age=data['mr_age'],
                                     phone=data['mr_phone'])
             region_id = (await db.add_entry("regions", "region_name", data['mr_region']))['id']
-            profession_id = (await db.add_entry("professions", "profession_name", data['mr_profession']))['id']
+            profession_id = (await db.add_entry("professions", "profession", data['mr_profession']))['id']
             id_ = (await db.add_need_teacher(user_id=user_id, profession_id=profession_id,
                                              apply_time=data['mr_apply_time'], cost=data['mr_cost'],
                                              maqsad=data['mr_goal'], region_id=region_id))['id']
             for tech in data['mr_technologies'].split(","):
                 tech_id = (await db.add_entry(table="technologies", field="technology_name", value=tech.strip()))['id']
-                await db.add_technologies(user_id=id_, technology_id=tech_id, table_name="n_teacher")
+                await db.add_technologies(user_id=id_, technology_id=tech_id, table_name="need_teacher")
             await format_mentor_data(data=data, message=message, to_admin=True, row_id=id_)
-
             await message.answer(
                 f"Ma'lumotlaringiz adminga yuborildi!\n\nSo'rov raqami: {message.from_user.id}{id_}"
                 f"\n\nAdmin tekshirib chiqqanidan so'ng natija yuboriladi!",

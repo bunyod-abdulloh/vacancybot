@@ -100,7 +100,7 @@ async def apprentice_request_check(message: types.Message, state: FSMContext):
                                     phone=data['apprentice_3'])
 
             region_id = (await db.add_entry("regions", "region_name", data['apprentice_4']))['id']
-            profession_id = (await db.add_entry("professions", "profession_name", data['apprentice_6']))['id']
+            profession_id = (await db.add_entry("professions", "profession", data['apprentice_6']))['id']
             id_ = (
                 await db.add_apprentice(user_id=user_id, profession_id=profession_id,
                                         apply_time=data['apprentice_7'],
@@ -109,11 +109,11 @@ async def apprentice_request_check(message: types.Message, state: FSMContext):
 
             for tech in data['apprentice_2'].split(","):
                 tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
-                await db.add_technologies(user_id=id_, technology_id=tech_id, table_name="apprentice")
+                await db.add_technologies(user_id=id_, technology_id=tech_id, table_name="need_apprentice")
             confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
                                  f"So'rov raqami: {message.from_user.id}{id_}\n\n"
                                  f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
-            await format_apprentice_data(data=data, message=message, to_admin=True)
+            await format_apprentice_data(data=data, message=message, to_admin=True, row_id=id_)
             await message.answer(text=confirmation_text, reply_markup=main_dkb())
 
             await state.clear()

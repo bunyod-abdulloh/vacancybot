@@ -7,7 +7,7 @@ env.read_env()
 BOT_TOKEN = env.str("BOT_TOKEN")
 # ADMINS = set(map(int, env.list("ADMINS")))
 ADMINS = env.list("ADMINS")
-ADMIN_GROUP = env.str("ADMIN_GROUP")
+# ADMIN_GROUP = env.str("ADMIN_GROUP")
 CHANNEL = env.str("CHANNEL")
 
 DB_USER = env.str("DB_USER")

@@ -112,7 +112,7 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
                                     username=f'@{message.from_user.username}', age=None, phone=data['pr_phone'])
 
             region_id = (await db.add_entry("regions", "region_name", data['pr_region']))['id']
-            profession_id = (await db.add_entry("professions", "profession_name", data['pr_profession']))['id']
+            profession_id = (await db.add_entry("professions", "profession", data['pr_profession']))['id']
             search_id = (
                 await db.add_srch_partner(user_id=user_id, profession_id=profession_id,
                                           apply_time=data['pr_apply_time'],
@@ -121,13 +121,12 @@ async def confirm_or_reenter_data(message: types.Message, state: FSMContext):
             for tech in data['pr_technologies'].split(","):
                 tech_id = (await db.add_entry("technologies", "technology_name", tech.strip()))['id']
                 await db.add_technologies(user_id=search_id, technology_id=tech_id, table_name="need_partner")
+            await partner_data_text(data=data, message=message, to_admin=True, row_id=search_id)
             confirmation_text = (f"Ma'lumotlaringiz adminga yuborildi!\n\n"
                                  f"So'rov raqami: {message.from_user.id}{search_id}\n\n"
                                  f"Admin tekshirib chiqqanidan so'ng natija yuboriladi!")
             await message.answer(text=confirmation_text, reply_markup=main_dkb())
 
-            # Sending admin notification
-            await partner_data_text(data=data, message=message, to_admin=True, row_id=search_id)
             await state.clear()
         except Exception as err:
             await failed_message(message, err)
