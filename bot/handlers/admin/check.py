@@ -26,7 +26,7 @@ async def send_and_alert(user_id, text, call):
     try:
         await bot.send_message(chat_id=user_id, text=text)
         user_data = await bot.get_chat(user_id)
-        await call.message.edit_text(f"Habar {user_data.full_name} (@{user_data.username}) ga yubrildi!")
+        await call.message.edit_text(f"Habar {user_data.full_name} (@{user_data.username}) ga yuborildi!")
     except Exception as e:
         await call.message.edit_text(f"Failed to send message to {user_id}: {e}")
 
@@ -84,24 +84,23 @@ async def generate_summary(user_data, techs, data_type, additional_info):
 
 # Fetch and send user information to channel
 async def get_send_user_info(user_id, data_type, row_id):
+    user_data = await db.get_user_data(user_id)
     row_id = int(row_id)
-    user = await db.get_entry("users", "telegram_id", user_id)
-    user_data = await db.get_entry("users_data", "user_id", user['id'])
 
     if data_type == "need_worker":
-        worker = await db.get_entry(data_type, "id", row_id)
-        idora = await db.get_entry("idoralar", "id", worker['idora_id'])
+        nw_data = await db.get_idora(row_id)
+
         technologies = await db.get_techs(row_id, data_type)
         techs = [(await db.get_entry("technologies", "id", tech['id']))['technology_name'] for tech in technologies]
-        region = (await db.get_entry("regions", "id", idora['region_id']))['region_name']
+        region = (await db.get_entry("regions", "id", nw_data['region_id']))['region_name']
         additional_info = {
-            "idora_nomi": idora['idora_nomi'],
-            "masul": idora['masul'],
+            "idora_nomi": nw_data['idora_nomi'],
+            "masul": nw_data['masul'],
             "region": region,
-            "m_vaqti": worker['m_vaqti'],
-            "i_vaqti": worker['i_vaqti'],
-            "maosh": worker['maosh'],
-            "qoshimcha": idora['qoshimcha'],
+            "m_vaqti": nw_data['m_vaqti'],
+            "i_vaqti": nw_data['i_vaqti'],
+            "maosh": nw_data['maosh'],
+            "qoshimcha": nw_data['qoshimcha'],
             "region_tag": region.split(",")[0].split(" ")[0]
         }
     else:

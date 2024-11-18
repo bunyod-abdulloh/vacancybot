@@ -164,6 +164,10 @@ class Database:
         """
         return await self.execute(sql, user_id, full_name, username, age, phone, fetchrow=True)
 
+    async def get_user_data(self, telegram_id):
+        sql = f"SELECT * FROM users_data INNER JOIN users ON users_data.user_id = users.id WHERE users.telegram_id = $1"
+        return await self.execute(sql, telegram_id, fetchrow=True)
+
     async def update_user(self, field, value):
         sql = f"UPDATE users SET {field}=$1 WHERE telegram_id=$2"
         return await self.execute(sql, value, fetchrow=True)
@@ -221,6 +225,10 @@ class Database:
                 VALUES ($1, $2, $3) RETURNING user_id
             """
         await self.execute(sql, user_id, technology_id, table_name, fetchrow=True)
+
+    async def get_idora(self, irow_id):
+        sql = f"SELECT idr.idora_nomi, idr.masul, nw.m_vaqti, nw.i_vaqti, nw.maosh, idr.qoshimcha, idr.region_id FROM need_worker AS nw INNER JOIN idoralar AS idr ON nw.idora_id = idr.id WHERE idr.id = $1"
+        return await self.execute(sql, irow_id, fetchrow=True)
 
     async def get_techs(self, user_id, table_name):
         sql = f"SELECT * FROM user_techs WHERE user_id=$1 AND table_name=$2"
